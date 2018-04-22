@@ -49,6 +49,14 @@ make
 **OSC Control:** The native version receive its parameters via the OSC protocol.
 `osc_example.js` is a sample for how to send messages to it.
 
+References
+----
+
+The colormaps used in this project are from these sources:
+
+- Dave Green's [Cubehelix colour scheme](http://www.mrao.cam.ac.uk/~dag/CUBEHELIX/)
+- Peter Karpov's article [In Search of a Perfect Colormap](http://inversed.ru/Blog_2.htm)
+
 License
 ----
 
