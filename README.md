@@ -35,7 +35,7 @@ There's also an electron version which allows exporting animations as videos. Yo
 npm run electron
 ```
 
-You'll need to install ffmpeg for this feature to work. The "Export Video" button will produce a `video.mp4` file in the current directory.
+You'll need to install ffmpeg for this feature to work. The "Export Video" button will produce a `video.mp4` file in the current directory. Here's a sample video: <https://vimeo.com/266017672>
 
 Build Native Version
 ----
