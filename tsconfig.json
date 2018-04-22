@@ -1,0 +1,9 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "rootDir": "src",
+        "outDir": "dist",
+        "jsx": "react",
+        "target": "es6"
+    }
+}

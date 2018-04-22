@@ -1,0 +1,98 @@
+.main-view {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.el-animation-item {
+    display: inline-block;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    cursor: pointer;
+}
+
+.el-error {
+    padding: 40px;
+    font-size: 24px;
+    color: #CCC;
+}
+
+.el-reason {
+    margin-top: 10px;
+    font-size: 16px;
+}
+
+.el-animation-item img {
+    border-radius: 4px;
+    width: 50px;
+}
+
+.main-header {
+    flex-shrink: 0;
+    flex-grow: 0;
+    height: 32px;
+    line-height: 32px;
+    display: flex;
+    background: #333;
+    color: #eee;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    padding: 0 10px;
+    z-index: 10;
+}
+
+.main-header .el-left {
+    flex: 1;
+}
+
+.main-header .el-right {
+    flex-grow: 0;
+}
+
+.fractal-application {
+    display: flex;
+    overflow: hidden;
+}
+
+.fractal-application .el-canvas {
+    flex: 1;
+    text-align: center;
+}
+
+h3 {
+    margin: 10px 0;
+    margin-top: 20px;
+}
+
+.fractal-application .el-controls {
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    width: 400px;
+    background: #ffffff;
+    flex-shrink: 0;
+    padding: 0px 20px;
+    overflow-x: hidden;
+    overflow-y: scroll;
+}
+
+.ant-select,
+.ant-input-number {
+    width: 100%;
+}
+
+.fractal-application .el-canvas canvas {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.el-widget {
+    margin-bottom: 10px;
+}
+
+.slider-row-label {
+    text-align: right;
+}
