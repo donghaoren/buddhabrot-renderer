@@ -8,6 +8,8 @@ A realtime [Buddhabrot](https://en.wikipedia.org/wiki/Buddhabrot) fractal render
 
 [Live Demo Here](https://donghaoren.org/buddhabrot/)
 
+![Gallery Image](https://raw.githubusercontent.com/donghaoren/buddhabrot-renderer/master/images/gallery.jpg)
+
 Build WebGL Version
 ----
 
