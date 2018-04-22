@@ -494,7 +494,7 @@ function MainView(props: {}) {
         <div className="main-view">
             <div className="main-header">
                 <div className="el-left"><strong>Realtime Buddhabrot Renderer</strong></div>
-                <div className="el-right">Copyright 2018, Donghao Ren. <a href="#">Source Code</a></div>
+                <div className="el-right">Copyright 2018, Donghao Ren. <a href="https://github.com/donghaoren/buddhabrot-renderer">Source Code</a></div>
             </div>
             <FractalApplication />
         </div>

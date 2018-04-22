@@ -6,6 +6,8 @@ A realtime [Buddhabrot](https://en.wikipedia.org/wiki/Buddhabrot) fractal render
 - Browser version based on WebGL 2 and transform feedback.
 - Native version using OpenGL 3.3 and geometry shader.
 
+[Live Demo Here](https://donghaoren.org/buddhabrot/)
+
 Build WebGL Version
 ----
 
