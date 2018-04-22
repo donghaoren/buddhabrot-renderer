@@ -57,6 +57,8 @@ The colormaps used in this project are from these sources:
 - Dave Green's [Cubehelix colour scheme](http://www.mrao.cam.ac.uk/~dag/CUBEHELIX/)
 - Peter Karpov's article [In Search of a Perfect Colormap](http://inversed.ru/Blog_2.htm)
 
+Melinda Green's [The Buddhabrot Technique](http://superliminal.com/fractals/bbrot/bbrot.htm) contains a lot of useful links to the buddhabrot method.
+
 License
 ----
 
