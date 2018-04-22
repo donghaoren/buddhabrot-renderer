@@ -10,8 +10,6 @@ A realtime [Buddhabrot](https://en.wikipedia.org/wiki/Buddhabrot) fractal render
 
 ![Gallery Image](https://raw.githubusercontent.com/donghaoren/buddhabrot-renderer/master/images/gallery.jpg)
 
-[Demo Video](https://vimeo.com/266017672)
-
 Build WebGL Version
 ----
 
@@ -30,6 +28,14 @@ Watch development:
 ```bash
 npm run watch
 ```
+
+There's also an electron version which allows exporting animations as videos. You can run it by:
+
+```bash
+npm run electron
+```
+
+You'll need to install ffmpeg for this feature to work. The "Export Video" button will produce a `video.mp4` file in the current directory.
 
 Build Native Version
 ----
