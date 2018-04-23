@@ -94,10 +94,10 @@ export class Fractal {
                 }
             },
             {
-                name: "Double Well: r * z^3 + r * 0.97z + c", parameters: {
-                    z3_scaler: 1, z3_angle: 180, z3_yscale: 1,
+                name: "Chain: r * z^3 + r * 0.97z + c", parameters: {
+                    z3_scaler: 0.58, z3_angle: 180, z3_yscale: 1,
                     z2_scaler: 0, z2_angle: 0, z2_yscale: 1,
-                    z1_scaler: 0.97, z1_angle: -95, z1_yscale: 1,
+                    z1_scaler: 1.68, z1_angle: 180, z1_yscale: 1,
                     ...default_rotations
                 }
             },
@@ -105,7 +105,7 @@ export class Fractal {
                 name: "Pyramid: r * z^2 + 2 * r * z + c", parameters: {
                     z3_scaler: 0, z3_angle: 0, z3_yscale: 1,
                     z2_scaler: 1, z2_angle: -180, z2_yscale: 1,
-                    z1_scaler: 2, z1_angle: 180, z1_yscale: 0,
+                    z1_scaler: 1.7, z1_angle: 180, z1_yscale: 0,
                     ...default_rotations
                 }
             }

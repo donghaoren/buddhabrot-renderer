@@ -15,39 +15,70 @@ export interface BuddhabrotRendererProfile {
     options: BuddhabrotRendererOptions;
 }
 
-const BuddhabrotRendererOptions_Default: BuddhabrotRendererOptions = {
-    samplerSize: 512,
-    samplerMipmapLevel: 1,
-    samplerMaxIterations: 512,
-    samplerMultiplier: 8,
-    renderSize: 2048,
-    renderIterations: 64
-};
-
-const BuddhabrotRendererOptions_Low: BuddhabrotRendererOptions = {
-    samplerSize: 512,
-    samplerMipmapLevel: 1,
-    samplerMaxIterations: 512,
-    samplerMultiplier: 4,
-    renderSize: 2048,
-    renderIterations: 64
-};
-
-const BuddhabrotRendererOptions_High: BuddhabrotRendererOptions = {
-    samplerSize: 1024,
-    samplerMipmapLevel: 1,
-    samplerMaxIterations: 512,
-    samplerMultiplier: 1,
-    renderSize: 2048,
-    renderIterations: 128
-};
-
-
 const profiles: BuddhabrotRendererProfile[] = [
-    { name: "Low (Fast) 512/1/4", options: BuddhabrotRendererOptions_Low },
-    { name: "Medium 512/1/8", options: BuddhabrotRendererOptions_Default },
-    { name: "High (Accurate) 1024/1/1", options: BuddhabrotRendererOptions_High }
+    {
+        name: "Veryfast (low quality) 512/1", options: {
+            samplerSize: 512,
+            samplerMipmapLevel: 1,
+            samplerMaxIterations: 512,
+            samplerMultiplier: 1,
+            renderSize: 2048,
+            renderIterations: 64
+        }
+    },
+    {
+        name: "Fast 512/2", options: {
+            samplerSize: 512,
+            samplerMipmapLevel: 1,
+            samplerMaxIterations: 512,
+            samplerMultiplier: 2,
+            renderSize: 2048,
+            renderIterations: 64
+        }
+    },
+    {
+        name: "Default 512/4", options: {
+            samplerSize: 512,
+            samplerMipmapLevel: 1,
+            samplerMaxIterations: 512,
+            samplerMultiplier: 4,
+            renderSize: 2048,
+            renderIterations: 64
+        }
+    },
+    {
+        name: "Slow 512/8", options: {
+            samplerSize: 512,
+            samplerMipmapLevel: 1,
+            samplerMaxIterations: 512,
+            samplerMultiplier: 8,
+            renderSize: 2048,
+            renderIterations: 64
+        }
+    },
+    {
+        name: "Highres Fast (high quality) 1024/1", options: {
+            samplerSize: 1024,
+            samplerMipmapLevel: 1,
+            samplerMaxIterations: 512,
+            samplerMultiplier: 1,
+            renderSize: 2048,
+            renderIterations: 128
+        }
+    },
+    {
+        name: "Highres Slow (high quality) 1024/2", options: {
+            samplerSize: 1024,
+            samplerMipmapLevel: 1,
+            samplerMaxIterations: 512,
+            samplerMultiplier: 2,
+            renderSize: 2048,
+            renderIterations: 128
+        }
+    }
 ];
+
+const default_profile = "Default 512/4";
 
 export class ShaderBuilder {
     private gl: WebGL2RenderingContext;
@@ -143,7 +174,8 @@ export class ShaderBuilder {
             in vec3 a_position;
             in vec2 i_position;
             out vec2 o_position;
-            out float a_multiplier;
+            out vec3 vo_accum;
+            uniform vec3 u_channel_scalers;
 
             // uniform int determine_escape;
 
@@ -164,15 +196,15 @@ export class ShaderBuilder {
                 // }
                 o_position = f(i_position, a_position.xy);
                 gl_Position = vec4(f_projection(o_position, a_position.xy) / 2.0, 0, 1);
-                a_multiplier = a_position.z;
+                vo_accum = vec3(a_position.z) * vec3(u_channel_scalers);
             }
         `;
         let fs_code = `#version 300 es
             precision highp float;
-            in float a_multiplier;
+            in vec3 vo_accum;
             out vec4 v_color;
             void main() {
-                v_color = vec4(vec3(a_multiplier), 1);
+                v_color = vec4(vec3(vo_accum), 1);
             }
         `;
         return this.compile(vs_code, fs_code, (p) => {
@@ -197,11 +229,32 @@ export class ShaderBuilder {
             uniform float colormapSize;
             uniform float colormapScaler;
             varying vec2 vo_position;
+
+            float xyz_rgb_curve(float r) {
+                if(r <= 0.00304) {
+                    return 12.92 * r;
+                } else {
+                    return 1.055 * pow(r, 1.0 / 2.4) - 0.055;
+                }
+            }
+
+            vec3 xyz2rgb(vec3 xyz) {
+                return vec3(
+                    xyz_rgb_curve(3.2404542 * xyz.x - 1.5371385 * xyz.y - 0.4985314 * xyz.z),
+                    xyz_rgb_curve(-0.9692660 * xyz.x + 1.8760108 * xyz.y + 0.0415560 * xyz.z),
+                    xyz_rgb_curve(0.0556434 * xyz.x - 0.2040259 * xyz.y + 1.0572252 * xyz.z)
+                );
+            }
+
             void main() {
                 float scale = colormapScaler * 4.0;
                 vec4 color = texture2D(texture, vo_position);
-                float v = min(1.0, sqrt(color.r / scale));
-                gl_FragColor = texture2D(textureColor, vec2((v * (colormapSize - 0.5) + 0.5) / colormapSize, 0.5));
+                vec3 v = min(vec3(1.0), sqrt(color.rgb / scale));
+                vec3 cx = texture2D(textureColor, vec2((v.x * (colormapSize - 0.5) + 0.5) / colormapSize, 1.0 / 6.0)).xyz;
+                vec3 cy = texture2D(textureColor, vec2((v.y * (colormapSize - 0.5) + 0.5) / colormapSize, 0.5)).xyz;
+                vec3 cz = texture2D(textureColor, vec2((v.z * (colormapSize - 0.5) + 0.5) / colormapSize, 5.0 / 6.0)).xyz;
+                vec3 xyz = cx + cy + cz;
+                gl_FragColor = vec4(xyz2rgb(xyz), 1.0);
             }
         `;
         return this.compile(vs_code, fs_code);
@@ -366,17 +419,21 @@ export class BuddhabrotRenderer {
         for (let p of profiles) {
             if (p.name == name) return p.options;
         }
-        return BuddhabrotRendererOptions_Default;
+        return profiles[0].options;
     }
     public static GetProfiles(): BuddhabrotRendererProfile[] {
         return profiles;
     }
+    public static GetDefaultProfile(): string {
+        return default_profile;
+    }
 
     constructor(canvas: HTMLCanvasElement, fractal: Fractal, options: BuddhabrotRendererOptions) {
         // Fill in default options
-        for (let key in BuddhabrotRendererOptions_Default) {
-            if (BuddhabrotRendererOptions_Default.hasOwnProperty(key)) {
-                if (options[key] === undefined) options[key] = BuddhabrotRendererOptions_Default[key];
+        let default_options = BuddhabrotRenderer.GetProfileOptions(BuddhabrotRenderer.GetDefaultProfile());
+        for (let key in default_options) {
+            if (default_options.hasOwnProperty(key)) {
+                if (options[key] === undefined) options[key] = default_options[key];
             }
         }
 
@@ -414,7 +471,7 @@ export class BuddhabrotRenderer {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, this.renderSize, this.renderSize, 0, gl.RED, gl.FLOAT, null);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.renderSize, this.renderSize, 0, gl.RGBA, gl.FLOAT, null);
         gl.bindTexture(gl.TEXTURE_2D, null);
         this.framebuffer = gl.createFramebuffer();
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
@@ -429,22 +486,30 @@ export class BuddhabrotRenderer {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null);
 
-        this.setColormap([[0, 0, 0, 1], [255, 255, 255, 1]]);
+        this.setColormap([
+            [[0, 0, 0, 1], [0, 0, 255, 1]],
+            [[0, 0, 0, 1], [0, 255, 0, 1]],
+            [[0, 0, 0, 1], [255, 0, 0, 1]]
+        ]);
     }
 
-    public setColormap(colormap: number[][]) {
+    public setColormap(colormap: number[][][]) {
         let gl = this.gl;
         gl.bindTexture(gl.TEXTURE_2D, this.textureColor);
-        let textureData = new Uint8Array(colormap.length * 4);
+        let textureData = new Float32Array(colormap[0].length * 4 * 6);
         let p = 0;
-        for (let i = 0; i < colormap.length; i++) {
-            textureData[p++] = colormap[i][0];
-            textureData[p++] = colormap[i][1];
-            textureData[p++] = colormap[i][2];
-            textureData[p++] = colormap[i][3] * 255;
+        for (let k = 0; k < 3; k++) {
+            for (let m = 0; m < 2; m++) {
+                for (let i = 0; i < colormap[0].length; i++) {
+                    textureData[p++] = colormap[k][i][0];
+                    textureData[p++] = colormap[k][i][1];
+                    textureData[p++] = colormap[k][i][2];
+                    textureData[p++] = colormap[k][i][3];
+                }
+            }
         }
-        this.colormapSize = colormap.length;
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, colormap.length, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, textureData);
+        this.colormapSize = colormap[0].length;
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, colormap[0].length, 6, 0, gl.RGBA, gl.FLOAT, textureData);
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 
@@ -512,6 +577,14 @@ export class BuddhabrotRenderer {
             gl.enableVertexAttribArray(gl.getAttribLocation(this.programRender, "i_position"));
             gl.vertexAttribPointer(gl.getAttribLocation(this.programRender, "i_position"), 2, gl.FLOAT, false, 8, 0);
 
+            if (i < this.renderIterations / 3 * 1) {
+                gl.uniform3f(gl.getUniformLocation(this.programRender, "u_channel_scalers"), 1, 0, 0);
+            } else if (i < this.renderIterations / 3 * 2) {
+                gl.uniform3f(gl.getUniformLocation(this.programRender, "u_channel_scalers"), 0, 1, 0);
+            } else {
+                gl.uniform3f(gl.getUniformLocation(this.programRender, "u_channel_scalers"), 0, 0, 1);
+            }
+
             gl.beginTransformFeedback(gl.POINTS);
             if (i < 4) {
                 gl.enable(gl.RASTERIZER_DISCARD);
@@ -550,7 +623,7 @@ export class BuddhabrotRenderer {
         gl.uniform1i(gl.getUniformLocation(this.programColor, "texture"), 0);
         gl.uniform1i(gl.getUniformLocation(this.programColor, "textureColor"), 1);
         gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapSize"), this.colormapSize);
-        gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapScaler"), this.scaler * (this.options.renderIterations - 4) / 800 * accumulateScaler / this.sampler.getScaler());
+        gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapScaler"), this.scaler * (this.options.renderIterations - 4) / 2000 * accumulateScaler / this.sampler.getScaler());
 
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, this.textureColor);

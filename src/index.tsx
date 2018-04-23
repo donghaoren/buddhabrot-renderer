@@ -79,12 +79,12 @@ class ColorMapView extends React.PureComponent<{ colormap: number[][] }, {}> {
 
     public render() {
         return (
-            <canvas ref="canvas" width={50} height={10} />
+            <canvas ref="canvas" width={50} height={12} />
         );
     }
 }
 
-class FractalRenderer extends React.Component<{ fractal: Fractal, options: BuddhabrotRendererOptions, exposure: number, colormap: number[][] }, { error?: string }> {
+class FractalRenderer extends React.Component<{ fractal: Fractal, options: BuddhabrotRendererOptions, exposure: number, colormap: number[][][] }, { error?: string }> {
     refs: {
         canvas: HTMLCanvasElement;
     };
@@ -121,7 +121,7 @@ class FractalRenderer extends React.Component<{ fractal: Fractal, options: Buddh
         if (this.currentTimeout) cancelAnimationFrame(this.currentTimeout);
         this.currentTimeout = null;
         if (!this.renderer) return;
-        let N = 100;
+        let N = 200;
         let index = 1;
         this.renderer.render(false, index);
         let renderNext = () => {
@@ -171,7 +171,7 @@ class FractalRenderer extends React.Component<{ fractal: Fractal, options: Buddh
         if (!this.renderer) return;
         this.renderer.scaler = value;
     }
-    public setColormap(colormap: number[][]) {
+    public setColormap(colormap: number[][][]) {
         if (!this.renderer) return;
         this.renderer.setColormap(colormap);
     }
@@ -199,7 +199,9 @@ interface AnimationKeyFrame {
 
 interface FractalApplicationState {
     fractal: Fractal;
-    colormap: string;
+    colormap1: string;
+    colormap2: string;
+    colormap3: string;
     backColor: string;
     rendererProfile: string;
     rendererScale: number;
@@ -217,11 +219,12 @@ class FractalApplication extends React.Component<{}, FractalApplicationState> {
     public state: FractalApplicationState = this.getDefaultState();
 
     public getDefaultState(): FractalApplicationState {
-        let defaultColormap = colormaps[0].name;
-        let defaultProfile = BuddhabrotRenderer.GetProfiles()[0].name;
+        let defaultProfile = BuddhabrotRenderer.GetDefaultProfile();
         return {
             fractal: new Fractal(),
-            colormap: defaultColormap,
+            colormap1: colormaps[0].name,
+            colormap2: colormaps[1].name,
+            colormap3: colormaps[2].name,
             backColor: "#000000",
             rendererProfile: defaultProfile,
             rendererScale: 0,
@@ -298,10 +301,18 @@ class FractalApplication extends React.Component<{}, FractalApplicationState> {
     public getColormapByName(name: string) {
         for (let cm of colormaps) {
             if (cm.name == name) {
-                return cm.colormap;
+                return cm;
             }
         }
-        return colormaps[0].colormap;
+        return colormaps[0];
+    }
+
+    public getCurrentColormap(): number[][][] {
+        return [
+            this.getColormapByName(this.state.colormap1).colormap_xyz,
+            this.getColormapByName(this.state.colormap2).colormap_xyz,
+            this.getColormapByName(this.state.colormap3).colormap_xyz
+        ];
     }
 
     public render() {
@@ -314,7 +325,7 @@ class FractalApplication extends React.Component<{}, FractalApplicationState> {
                         fractal={this.state.fractal}
                         options={BuddhabrotRenderer.GetProfileOptions(this.state.rendererProfile)}
                         exposure={this.state.rendererScale}
-                        colormap={this.getColormapByName(this.state.colormap)}
+                        colormap={this.getCurrentColormap()}
                     />
                 </div>
                 <div className="el-controls">
@@ -338,25 +349,50 @@ class FractalApplication extends React.Component<{}, FractalApplicationState> {
 
                     </div>
                     <div className="el-widget">
-                        <Row gutter={10} align="middle" type="flex">
+                        <Row gutter={10} align="top" type="flex">
                             <Col span={6}>
-                                <div className="slider-row-label">Colormap</div>
+                                <div className="slider-row-label" style={{ paddingTop: "5px" }}>Colormap</div>
                             </Col>
                             <Col span={18}>
-                                <Select value={this.state.colormap}
-                                    onChange={(e: string) => {
-                                        this.setState({
-                                            colormap: e
-                                        });
-                                        let cm = this.getColormapByName(e);
-                                        this.refs.renderer.setColormap(cm);
-                                        this.setState({
-                                            backColor: chroma(cm[0]).hex()
-                                        });
-                                        this.refs.renderer.refresh();
-                                    }}>
-                                    {colormaps.map(cm => (<Select.Option value={cm.name} key={cm.name}><ColorMapView colormap={cm.colormap} /> {cm.name}</Select.Option>))}
-                                </Select>
+                                <div className="el-widget">
+                                    <Select value={this.state.colormap1}
+                                        onChange={(e: string) => {
+                                            this.setState({
+                                                colormap1: e
+                                            }, () => {
+                                                this.refs.renderer.setColormap(this.getCurrentColormap());
+                                                this.refs.renderer.refresh();
+                                            });
+                                        }}>
+                                        {colormaps.map(cm => (<Select.Option value={cm.name} key={cm.name}><ColorMapView colormap={cm.colormap_rgb} /> {cm.name}</Select.Option>))}
+                                    </Select>
+                                </div>
+                                <div className="el-widget">
+                                    <Select value={this.state.colormap2}
+                                        onChange={(e: string) => {
+                                            this.setState({
+                                                colormap2: e
+                                            }, () => {
+                                                this.refs.renderer.setColormap(this.getCurrentColormap());
+                                                this.refs.renderer.refresh();
+                                            });
+                                        }}>
+                                        {colormaps.map(cm => (<Select.Option value={cm.name} key={cm.name}><ColorMapView colormap={cm.colormap_rgb} /> {cm.name}</Select.Option>))}
+                                    </Select>
+                                </div>
+                                <div className="el-widget">
+                                    <Select value={this.state.colormap3}
+                                        onChange={(e: string) => {
+                                            this.setState({
+                                                colormap3: e
+                                            }, () => {
+                                                this.refs.renderer.setColormap(this.getCurrentColormap());
+                                                this.refs.renderer.refresh();
+                                            });
+                                        }}>
+                                        {colormaps.map(cm => (<Select.Option value={cm.name} key={cm.name}><ColorMapView colormap={cm.colormap_rgb} /> {cm.name}</Select.Option>))}
+                                    </Select>
+                                </div>
                             </Col>
                         </Row>
                     </div>
