@@ -29,6 +29,14 @@ Watch development:
 npm run watch
 ```
 
+There's also an electron version which allows exporting animations as videos. You can run it by:
+
+```bash
+npm run electron
+```
+
+You'll need to install ffmpeg for this feature to work. The "Export Video" button will produce a `video.mp4` file in the current directory. Here's a sample video: <https://vimeo.com/266017672>
+
 Build Native Version
 ----
 
@@ -48,6 +56,16 @@ make
 
 **OSC Control:** The native version receive its parameters via the OSC protocol.
 `osc_example.js` is a sample for how to send messages to it.
+
+References
+----
+
+The colormaps used in this project are from these sources:
+
+- Dave Green's [Cubehelix colour scheme](http://www.mrao.cam.ac.uk/~dag/CUBEHELIX/)
+- Peter Karpov's article [In Search of a Perfect Colormap](http://inversed.ru/Blog_2.htm)
+
+Melinda Green's [The Buddhabrot Technique](http://superliminal.com/fractals/bbrot/bbrot.htm) contains a lot of useful links to the buddhabrot method.
 
 License
 ----
