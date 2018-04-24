@@ -84,7 +84,7 @@ class ColorMapView extends React.PureComponent<{ colormap: number[][] }, {}> {
     }
 }
 
-class FractalRenderer extends React.Component<{ fractal: Fractal, options: BuddhabrotRendererOptions, exposure: number, colormap: number[][][] }, { error?: string }> {
+class FractalRenderer extends React.Component<{ fractal: Fractal, options: BuddhabrotRendererOptions, exposure: number, spectrumScaler: number, colormap: number[][][] }, { error?: string }> {
     refs: {
         canvas: HTMLCanvasElement;
     };
@@ -99,7 +99,8 @@ class FractalRenderer extends React.Component<{ fractal: Fractal, options: Buddh
         try {
             this.renderer = new BuddhabrotRenderer(this.refs.canvas, this.props.fractal, this.props.options);
             this.renderer.setColormap(this.props.colormap);
-            this.renderer.scaler = Math.pow(2, -this.props.exposure);
+            this.renderer.exposure = this.props.exposure;
+            this.renderer.spectrumScaler = this.props.spectrumScaler;
         } catch (e) {
             this.setState({
                 error: e.message
@@ -167,10 +168,16 @@ class FractalRenderer extends React.Component<{ fractal: Fractal, options: Buddh
         this.renderer.readPixels(buffer);
     }
 
-    public setScale(value: number) {
+    public setExposure(value: number) {
         if (!this.renderer) return;
-        this.renderer.scaler = value;
+        this.renderer.exposure = value;
     }
+
+    public setSpectrumScaler(value: number) {
+        if (!this.renderer) return;
+        this.renderer.spectrumScaler = value;
+    }
+
     public setColormap(colormap: number[][][]) {
         if (!this.renderer) return;
         this.renderer.setColormap(colormap);
@@ -204,7 +211,8 @@ interface FractalApplicationState {
     colormap3: string;
     backColor: string;
     rendererProfile: string;
-    rendererScale: number;
+    rendererExposure: number;
+    rendererSpectrumScaler: number;
 
     animation: AnimationKeyFrame[];
     isPlaying: boolean;
@@ -227,7 +235,8 @@ class FractalApplication extends React.Component<{}, FractalApplicationState> {
             colormap3: colormaps[2].name,
             backColor: "#000000",
             rendererProfile: defaultProfile,
-            rendererScale: 0,
+            rendererExposure: 0,
+            rendererSpectrumScaler: 1,
             animation: require("../data/animations.json"),
             isPlaying: false
         };
@@ -324,7 +333,8 @@ class FractalApplication extends React.Component<{}, FractalApplicationState> {
                         key={this.state.rendererProfile}
                         fractal={this.state.fractal}
                         options={BuddhabrotRenderer.GetProfileOptions(this.state.rendererProfile)}
-                        exposure={this.state.rendererScale}
+                        exposure={this.state.rendererExposure}
+                        spectrumScaler={this.state.rendererSpectrumScaler}
                         colormap={this.getCurrentColormap()}
                     />
                 </div>
@@ -402,12 +412,28 @@ class FractalApplication extends React.Component<{}, FractalApplicationState> {
                             min={-3}
                             max={3}
                             step={0.01}
-                            value={this.state.rendererScale}
+                            value={this.state.rendererExposure}
                             onChange={(e: number) => {
                                 this.setState({
-                                    rendererScale: e
+                                    rendererExposure: e
                                 });
-                                this.refs.renderer.setScale(Math.pow(2, -e));
+                                this.refs.renderer.setExposure(e);
+                                this.refs.renderer.refresh();
+                            }}
+                        />
+                    </div>
+                    <div className="el-widget">
+                        <SliderRow
+                            label="Spectrum"
+                            min={0}
+                            max={5}
+                            step={0.01}
+                            value={this.state.rendererSpectrumScaler}
+                            onChange={(e: number) => {
+                                this.setState({
+                                    rendererSpectrumScaler: e
+                                });
+                                this.refs.renderer.setSpectrumScaler(e);
                                 this.refs.renderer.refresh();
                             }}
                         />

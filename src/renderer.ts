@@ -175,6 +175,8 @@ export class ShaderBuilder {
             out vec3 o_position;
             out vec3 vo_accum;
 
+            uniform float u_spectrum_scaler;
+
             ${this.fractal.getShaderFunction("f")}
 
             void main () {
@@ -183,7 +185,7 @@ export class ShaderBuilder {
                 for(int i = 0; i < 256; i++) {
                     z = f(z, a_position.xy);
                     if(z.x * z.x + z.y * z.y > 16.0) {
-                        o_position = vec3(0, 0, float(i) / 256.0);
+                        o_position = vec3(0, 0, float(i) / 160.0 * u_spectrum_scaler);
                         break;
                     }
                 }
@@ -439,7 +441,9 @@ export class BuddhabrotRenderer {
     private renderIterations: number;
     private vbo: WebGLBuffer;
 
-    public scaler = 1;
+    public exposure = 1;
+    public spectrumScaler = 1;
+
     public static GetProfileOptions(name: string): BuddhabrotRendererOptions {
         for (let p of profiles) {
             if (p.name == name) return p.options;
@@ -567,6 +571,8 @@ export class BuddhabrotRenderer {
         gl.useProgram(this.programRenderEscape);
         this.fractal.setShaderUniforms(gl, this.programRenderEscape);
 
+        gl.uniform1f(gl.getUniformLocation(this.programRenderEscape, "u_spectrum_scaler"), this.spectrumScaler);
+
         gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
         gl.enableVertexAttribArray(gl.getAttribLocation(this.programRenderEscape, "a_position"));
         gl.vertexAttribPointer(gl.getAttribLocation(this.programRenderEscape, "a_position"), 3, gl.FLOAT, false, 12, 0);
@@ -603,7 +609,7 @@ export class BuddhabrotRenderer {
             gl.vertexAttribPointer(gl.getAttribLocation(this.programRender, "i_position"), 3, gl.FLOAT, false, 12, 0);
 
             gl.beginTransformFeedback(gl.POINTS);
-            if (i < 1) {
+            if (i < 4) {
                 gl.enable(gl.RASTERIZER_DISCARD);
             }
             gl.drawArrays(gl.POINTS, 0, samplesCount);
@@ -639,7 +645,7 @@ export class BuddhabrotRenderer {
         gl.uniform1i(gl.getUniformLocation(this.programColor, "texture"), 0);
         gl.uniform1i(gl.getUniformLocation(this.programColor, "textureColor"), 1);
         gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapSize"), this.colormapSize);
-        gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapScaler"), this.scaler * (this.options.renderIterations - 1) / 6000 * accumulateScaler / this.sampler.getScaler());
+        gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapScaler"), Math.pow(2, -this.exposure) * (this.options.renderIterations - 4) / 20000 * accumulateScaler / this.sampler.getScaler());
 
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, this.textureColor);
