@@ -215,7 +215,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, options.renderSize, options.renderSize, 0, GL_RED, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, options.renderSize, options.renderSize, 0, GL_RGBA, GL_FLOAT, nullptr);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // Create framebuffer and assign the texture
@@ -242,9 +242,9 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
         )__CODE__",
         std::string(R"__CODE__(#version 330
             layout(points) in;
-            layout(points, max_vertices = 64) out;
+            layout(points, max_vertices = 256) out;
             in vec3 vo_sample[1];
-            out float a_multiplier;
+            out vec3 a_multiplier;
 
         )__CODE__") +
             options.fractal->getShaderFunction() + std::string(R"__CODE__(
@@ -252,43 +252,46 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
             void main () {
                 vec2 c = vo_sample[0].xy;
                 vec2 z = vec2(0);
-                a_multiplier = vo_sample[0].z;
-                // int diverge = 0;
-                // for(int i = 0; i < 256; i++) {
-                //     z = fractal(z, c);
-                //     if(z.x * z.x + z.y * z.y >= 16.0) {
-                //         diverge = i;
-                //         break;
-                //     }
-                // }
-                // z = vec2(0);
-                // if(diverge != 0) {
-                //     for(int i = 0; i < diverge; i++) {
-                //         z = fractal(z, c);
-                //         if(i >= 4) {
-                //             gl_Position = vec4(fractal_projection(z, c) / 2.0, 0, 1);
-                //             EmitVertex();
-                //         }
-                //     }
-                // }
-
-                for(int i = 0; i < 64; i++) {
+                a_multiplier = vec3(vo_sample[0].z, 0, 0);
+                int diverge = 0;
+                for(int i = 0; i < 256; i++) {
                     z = fractal(z, c);
-                    if(i >= 4) {
-                        gl_Position = vec4(fractal_projection(z, c) / 2.0, 0, 1);
-                        EmitVertex();
-                    }
                     if(z.x * z.x + z.y * z.y >= 16.0) {
+                        diverge = i;
                         break;
                     }
                 }
+                if(diverge < 80) a_multiplier = vec3(vo_sample[0].z, 0, 0);
+                else if(diverge < 160) a_multiplier = vec3(0, vo_sample[0].z, 0);
+                else a_multiplier = vec3(0, 0, vo_sample[0].z);
+                z = vec2(0);
+                if(diverge != 0) {
+                    for(int i = 0; i < diverge; i++) {
+                        z = fractal(z, c);
+                        if(i >= 1) {
+                            gl_Position = vec4(fractal_projection(z, c) / 2.0, 0, 1);
+                            EmitVertex();
+                        }
+                    }
+                }
+
+                // for(int i = 0; i < 64; i++) {
+                //     z = fractal(z, c);
+                //     if(i >= 4) {
+                //         gl_Position = vec4(fractal_projection(z, c) / 2.0, 0, 1);
+                //         EmitVertex();
+                //     }
+                //     if(z.x * z.x + z.y * z.y >= 16.0) {
+                //         break;
+                //     }
+                // }
             }
         )__CODE__"),
         R"__CODE__(#version 330
-            in float a_multiplier;
+            in vec3 a_multiplier;
             layout(location = 0) out vec4 v_color;
             void main() {
-                v_color = vec4(vec3(a_multiplier), 1);
+                v_color = vec4(a_multiplier, 1);
             }
         )__CODE__");
 
@@ -311,9 +314,10 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
             void main() {
                 float scale = colormapScaler * 4.0;
                 vec4 color = texture(texInput, vo_position);
-                float v = min(1.0, sqrt(color.r / scale));
-                float pos = (v * (colormapSize - 0.5) + 0.5) / colormapSize;
-                frag_color = texture(texColor, vec2(pos, 0.5));
+                vec3 v = min(vec3(1.0), sqrt(color.rgb / scale));
+                frag_color = vec4(v.bgr, 1.0);
+                // float pos = (v * (colormapSize - 0.5) + 0.5) / colormapSize;
+                // frag_color = texture(texColor, vec2(pos, 0.5));
             }
         )__CODE__"));
 
@@ -386,7 +390,7 @@ void BuddhabrotRenderer::render(int x, int y, int width, int height)
     glUniform1i(glGetUniformLocation(programDisplay, "texColor"), 1);
     glUniform1f(glGetUniformLocation(programDisplay, "colormapSize"), colormapLength);
     int accumulateScaler = 1;
-    float colormapScaler = scaler * (options.renderIterations - 4) / 800.0 * accumulateScaler;
+    float colormapScaler = scaler * (options.renderIterations - 4) / 1000.0 * accumulateScaler;
     colormapScaler /= 256.0 * 256.0 / (options.samplerSize >> options.samplerMipmapLevel) / (options.samplerSize >> options.samplerMipmapLevel);
     glUniform1f(glGetUniformLocation(programDisplay, "colormapScaler"), colormapScaler);
     glActiveTexture(GL_TEXTURE0);

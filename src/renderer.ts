@@ -23,7 +23,7 @@ const profiles: BuddhabrotRendererProfile[] = [
             samplerMaxIterations: 512,
             samplerMultiplier: 1,
             renderSize: 2048,
-            renderIterations: 64
+            renderIterations: 256
         }
     },
     {
@@ -33,7 +33,7 @@ const profiles: BuddhabrotRendererProfile[] = [
             samplerMaxIterations: 512,
             samplerMultiplier: 2,
             renderSize: 2048,
-            renderIterations: 64
+            renderIterations: 256
         }
     },
     {
@@ -43,7 +43,7 @@ const profiles: BuddhabrotRendererProfile[] = [
             samplerMaxIterations: 512,
             samplerMultiplier: 4,
             renderSize: 2048,
-            renderIterations: 64
+            renderIterations: 256
         }
     },
     {
@@ -53,7 +53,7 @@ const profiles: BuddhabrotRendererProfile[] = [
             samplerMaxIterations: 512,
             samplerMultiplier: 8,
             renderSize: 2048,
-            renderIterations: 64
+            renderIterations: 256
         }
     },
     {
@@ -63,7 +63,7 @@ const profiles: BuddhabrotRendererProfile[] = [
             samplerMaxIterations: 512,
             samplerMultiplier: 1,
             renderSize: 2048,
-            renderIterations: 128
+            renderIterations: 256
         }
     },
     {
@@ -73,7 +73,7 @@ const profiles: BuddhabrotRendererProfile[] = [
             samplerMaxIterations: 512,
             samplerMultiplier: 2,
             renderSize: 2048,
-            renderIterations: 128
+            renderIterations: 256
         }
     }
 ];
@@ -168,35 +168,59 @@ export class ShaderBuilder {
         return this.compile(vs_code, fs_code);
     }
 
-    buildBuddhabrot() {
+    buildBuddhabrotEscape() {
         let vs_code = `#version 300 es
             precision highp float;
             in vec3 a_position;
-            in vec2 i_position;
-            out vec2 o_position;
+            out vec3 o_position;
             out vec3 vo_accum;
-            uniform vec3 u_channel_scalers;
-
-            // uniform int determine_escape;
 
             ${this.fractal.getShaderFunction("f")}
 
             void main () {
-                // if(determine_escape == 1) {
-                //     vec2 z = vec2(0);
-                //     o_position = vec2(100.0);
-                //     for(int i = 0; i < 20000; i++) {
-                //         z = f(z, a_position.xy);
-                //         if(z.x * z.x + z.y * z.y > 16.0) {
-                //             o_position = vec2(0);
-                //             break;
-                //         }
-                //     }
-                //     return;
-                // }
-                o_position = f(i_position, a_position.xy);
-                gl_Position = vec4(f_projection(o_position, a_position.xy) / 2.0, 0, 1);
-                vo_accum = vec3(a_position.z) * vec3(u_channel_scalers);
+                vec2 z = vec2(0);
+                o_position = vec3(100.0, 100.0, 100.0);
+                for(int i = 0; i < 256; i++) {
+                    z = f(z, a_position.xy);
+                    if(z.x * z.x + z.y * z.y > 16.0) {
+                        o_position = vec3(0, 0, float(i) / 256.0);
+                        break;
+                    }
+                }
+            }
+        `;
+        let fs_code = `#version 300 es
+            precision highp float;
+            in vec3 vo_accum;
+            out vec4 v_color;
+            void main() {
+                v_color = vec4(vec3(vo_accum), 1);
+            }
+        `;
+        return this.compile(vs_code, fs_code, (p) => {
+            this.gl.transformFeedbackVaryings(p, ["o_position"], this.gl.SEPARATE_ATTRIBS);
+        });
+    }
+    buildBuddhabrot() {
+        let vs_code = `#version 300 es
+            precision highp float;
+            in vec3 a_position;
+            in vec3 i_position;
+            out vec3 o_position;
+            out vec3 vo_accum;
+
+            ${this.fractal.getShaderFunction("f")}
+
+            void main () {
+                o_position = vec3(f(i_position.xy, a_position.xy), i_position.z);
+                gl_Position = vec4(f_projection(o_position.xy, a_position.xy) / 2.0, 0, 1);
+                if(i_position.z < 0.3333) {
+                    vo_accum = vec3(a_position.z) * vec3(1, 0, 0);
+                } else if(i_position.z < 0.6666) {
+                    vo_accum = vec3(a_position.z) * vec3(0, 1, 0);
+                } else {
+                    vo_accum = vec3(a_position.z) * vec3(0, 0, 1);
+                }
             }
         `;
         let fs_code = `#version 300 es
@@ -398,6 +422,7 @@ export class BuddhabrotRenderer {
     private options: BuddhabrotRendererOptions;
     private gl: WebGL2RenderingContext;
     private sampler: MandelbrotSampler;
+    private programRenderEscape: WebGLProgram;
     private programRender: WebGLProgram;
     private programColor: WebGLProgram;
 
@@ -460,6 +485,7 @@ export class BuddhabrotRenderer {
 
         this.feedbackBuffer1 = gl.createBuffer();
         this.feedbackBuffer2 = gl.createBuffer();
+        this.programRenderEscape = p.buildBuddhabrotEscape();
         this.programRender = p.buildBuddhabrot();
         this.programColor = p.buildQuad();
 
@@ -531,11 +557,31 @@ export class BuddhabrotRenderer {
 
         // Initialize the feedback buffer to zero
         gl.bindBuffer(gl.ARRAY_BUFFER, this.feedbackBuffer1);
-        gl.bufferData(gl.ARRAY_BUFFER, 8 * samplesCount, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, 12 * samplesCount, gl.STATIC_DRAW);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.feedbackBuffer2);
-        gl.bufferData(gl.ARRAY_BUFFER, 8 * samplesCount, gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, 12 * samplesCount, gl.STATIC_DRAW);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        // Determine the number of iterations and coloring of the samples
+        gl.useProgram(this.programRenderEscape);
+        this.fractal.setShaderUniforms(gl, this.programRenderEscape);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
+        gl.enableVertexAttribArray(gl.getAttribLocation(this.programRenderEscape, "a_position"));
+        gl.vertexAttribPointer(gl.getAttribLocation(this.programRenderEscape, "a_position"), 3, gl.FLOAT, false, 12, 0);
+
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.transformFeedback);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, this.feedbackBuffer1);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.feedbackBuffer2);
+        gl.beginTransformFeedback(gl.POINTS);
+        gl.enable(gl.RASTERIZER_DISCARD);
+        gl.drawArrays(gl.POINTS, 0, samplesCount);
+        gl.disable(gl.RASTERIZER_DISCARD);
+        gl.endTransformFeedback();
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+        gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
 
         // Iteratively render using transform feedback
         gl.useProgram(this.programRender);
@@ -544,27 +590,6 @@ export class BuddhabrotRenderer {
         gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
         gl.enableVertexAttribArray(gl.getAttribLocation(this.programRender, "a_position"));
         gl.vertexAttribPointer(gl.getAttribLocation(this.programRender, "a_position"), 3, gl.FLOAT, false, 12, 0);
-
-        // gl.bindBuffer(gl.ARRAY_BUFFER, this.feedbackBuffer1);
-        // gl.enableVertexAttribArray(gl.getAttribLocation(this.programRender, "i_position"));
-        // gl.vertexAttribPointer(gl.getAttribLocation(this.programRender, "i_position"), 2, gl.FLOAT, false, 8, 0);
-
-        // gl.uniform1i(gl.getUniformLocation(this.programRender, "determine_escape"), 1);
-        // gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, this.transformFeedback);
-        // gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, this.feedbackBuffer1);
-        // gl.bindBuffer(gl.ARRAY_BUFFER, this.feedbackBuffer2);
-        // gl.enableVertexAttribArray(gl.getAttribLocation(this.programRender, "i_position"));
-        // gl.vertexAttribPointer(gl.getAttribLocation(this.programRender, "i_position"), 2, gl.FLOAT, false, 8, 0);
-        // gl.beginTransformFeedback(gl.POINTS);
-        // gl.enable(gl.RASTERIZER_DISCARD);
-        // gl.drawArrays(gl.POINTS, 0, samplesCount);
-        // gl.disable(gl.RASTERIZER_DISCARD);
-        // gl.endTransformFeedback();
-        // gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-        // gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-
-        // gl.uniform1i(gl.getUniformLocation(this.programRender, "determine_escape"), 0);
 
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE);
@@ -575,18 +600,10 @@ export class BuddhabrotRenderer {
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.feedbackBuffer1);
             gl.enableVertexAttribArray(gl.getAttribLocation(this.programRender, "i_position"));
-            gl.vertexAttribPointer(gl.getAttribLocation(this.programRender, "i_position"), 2, gl.FLOAT, false, 8, 0);
-
-            if (i < this.renderIterations / 3 * 1) {
-                gl.uniform3f(gl.getUniformLocation(this.programRender, "u_channel_scalers"), 1, 0, 0);
-            } else if (i < this.renderIterations / 3 * 2) {
-                gl.uniform3f(gl.getUniformLocation(this.programRender, "u_channel_scalers"), 0, 1, 0);
-            } else {
-                gl.uniform3f(gl.getUniformLocation(this.programRender, "u_channel_scalers"), 0, 0, 1);
-            }
+            gl.vertexAttribPointer(gl.getAttribLocation(this.programRender, "i_position"), 3, gl.FLOAT, false, 12, 0);
 
             gl.beginTransformFeedback(gl.POINTS);
-            if (i < 4) {
+            if (i < 1) {
                 gl.enable(gl.RASTERIZER_DISCARD);
             }
             gl.drawArrays(gl.POINTS, 0, samplesCount);
@@ -600,9 +617,8 @@ export class BuddhabrotRenderer {
             this.feedbackBuffer1 = this.feedbackBuffer2;
             this.feedbackBuffer2 = t;
         }
-
         gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
-        gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -623,7 +639,7 @@ export class BuddhabrotRenderer {
         gl.uniform1i(gl.getUniformLocation(this.programColor, "texture"), 0);
         gl.uniform1i(gl.getUniformLocation(this.programColor, "textureColor"), 1);
         gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapSize"), this.colormapSize);
-        gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapScaler"), this.scaler * (this.options.renderIterations - 4) / 2000 * accumulateScaler / this.sampler.getScaler());
+        gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapScaler"), this.scaler * (this.options.renderIterations - 1) / 6000 * accumulateScaler / this.sampler.getScaler());
 
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, this.textureColor);
