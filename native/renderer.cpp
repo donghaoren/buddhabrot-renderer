@@ -311,13 +311,32 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
             uniform float colormapScaler;
             in vec2 vo_position;
             layout(location = 0) out vec4 frag_color;
+
+            float xyz_rgb_curve(float r) {
+                if(r <= 0.00304) {
+                    return 12.92 * r;
+                } else {
+                    return 1.055 * pow(r, 1.0 / 2.4) - 0.055;
+                }
+            }
+
+            vec3 xyz2rgb(vec3 xyz) {
+                return vec3(
+                    xyz_rgb_curve(3.2404542 * xyz.x - 1.5371385 * xyz.y - 0.4985314 * xyz.z),
+                    xyz_rgb_curve(-0.9692660 * xyz.x + 1.8760108 * xyz.y + 0.0415560 * xyz.z),
+                    xyz_rgb_curve(0.0556434 * xyz.x - 0.2040259 * xyz.y + 1.0572252 * xyz.z)
+                );
+            }
+
             void main() {
                 float scale = colormapScaler * 4.0;
                 vec4 color = texture(texInput, vo_position);
                 vec3 v = min(vec3(1.0), sqrt(color.rgb / scale));
-                frag_color = vec4(v.bgr, 1.0);
-                // float pos = (v * (colormapSize - 0.5) + 0.5) / colormapSize;
-                // frag_color = texture(texColor, vec2(pos, 0.5));
+                vec3 cx = texture(texColor, vec2((v.x * (colormapSize - 0.5) + 0.5) / colormapSize, 1.0 / 6.0)).xyz;
+                vec3 cy = texture(texColor, vec2((v.y * (colormapSize - 0.5) + 0.5) / colormapSize, 0.5)).xyz;
+                vec3 cz = texture(texColor, vec2((v.z * (colormapSize - 0.5) + 0.5) / colormapSize, 5.0 / 6.0)).xyz;
+                vec3 xyz = cx + cy + cz;
+                frag_color = vec4(xyz2rgb(xyz), 1.0);
             }
         )__CODE__"));
 
@@ -342,8 +361,11 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    unsigned char default_colormap[] = {0, 0, 0, 255, 255, 255, 255, 255};
-    setColormap(default_colormap, 2);
+    float default_colormap[][8] = {
+        {0, 0, 0, 1, 0, 0, 0.3, 1},
+        {0, 0, 0, 1, 0, 0.3, 0, 1},
+        {0, 0, 0, 1, 0.3, 0, 0, 1}};
+    setColormap(default_colormap[0], default_colormap[1], default_colormap[2], 2);
 
     scaler = 1;
 
@@ -354,12 +376,27 @@ void BuddhabrotRenderer::setScaler(float _scaler)
 {
     scaler = _scaler;
 }
-void BuddhabrotRenderer::setColormap(unsigned char *colormap, int length)
+void BuddhabrotRenderer::setColormap(float *cm1, float *cm2, float *cm3, int length)
 {
+    float *data = new float[length * 18];
+    int ptr = 0;
+    for (int i = 0; i < length * 3; i++)
+        data[ptr++] = cm1[i];
+    for (int i = 0; i < length * 3; i++)
+        data[ptr++] = cm1[i];
+    for (int i = 0; i < length * 3; i++)
+        data[ptr++] = cm2[i];
+    for (int i = 0; i < length * 3; i++)
+        data[ptr++] = cm2[i];
+    for (int i = 0; i < length * 3; i++)
+        data[ptr++] = cm3[i];
+    for (int i = 0; i < length * 3; i++)
+        data[ptr++] = cm3[i];
     glBindTexture(GL_TEXTURE_2D, colormapTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, length, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, colormap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, length, 6, 0, GL_RGB, GL_FLOAT, data);
     glBindTexture(GL_TEXTURE_2D, 0);
     colormapLength = length;
+    delete[] data;
 }
 
 void BuddhabrotRenderer::render(int x, int y, int width, int height)

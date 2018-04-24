@@ -17,6 +17,7 @@ var rotation_zycx = 0;
 var rotation_zycy = 0;
 
 var animation = require("../data/animations.json");
+var colormaps = require("../data/colormaps_generated.json");
 
 function post_parameters(params) {
   client.send('buddhabrot_parameters',
@@ -44,6 +45,34 @@ function interp_paramters(a, b, t) {
   return r;
 }
 
+function setColormap(v1, v2, v3) {
+  let buf1 = new Buffer(v1.length * 12);
+  for (let i = 0; i < v1.length; i++) {
+    buf1.writeFloatLE(v1[i][0], 12 * i);
+    buf1.writeFloatLE(v1[i][1], 12 * i + 4);
+    buf1.writeFloatLE(v1[i][2], 12 * i + 8);
+  }
+  let buf2 = new Buffer(v2.length * 12);
+  for (let i = 0; i < v2.length; i++) {
+    buf2.writeFloatLE(v2[i][0], 12 * i);
+    buf2.writeFloatLE(v2[i][1], 12 * i + 4);
+    buf2.writeFloatLE(v2[i][2], 12 * i + 8);
+  }
+  let buf3 = new Buffer(v3.length * 12);
+  for (let i = 0; i < v3.length; i++) {
+    buf3.writeFloatLE(v3[i][0], 12 * i);
+    buf3.writeFloatLE(v3[i][1], 12 * i + 4);
+    buf3.writeFloatLE(v3[i][2], 12 * i + 8);
+  }
+  client.send({
+    address: "buddhabrot_colormap",
+    args: [
+      buf1, buf2, buf3
+    ]
+  });
+}
+
+
 let t0 = new Date().getTime();
 setInterval(() => {
   let t1 = new Date().getTime();
@@ -55,4 +84,6 @@ setInterval(() => {
   i2 = Math.min(animation.length - 1, i2);
   let t = s - i1;
   post_parameters(interp_paramters(animation[i1].parameters, animation[i2].parameters, t));
+  setColormap(colormaps[0].colormap_xyz, colormaps[1].colormap_xyz, colormaps[2].colormap_xyz);
 }, 10);
+

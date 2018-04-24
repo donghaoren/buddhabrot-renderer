@@ -13,7 +13,6 @@
 #include "opengl.h"
 #include "renderer.h"
 #include "fractal.h"
-#include "colormaps.h"
 
 GLFWwindow *window;
 
@@ -21,7 +20,9 @@ BuddhabrotRenderer *renderer;
 BuddhabrotFractal *fractal;
 
 BuddhabrotFractal::BuddhabrotFractalParameters fractal_parameters;
-std::vector<unsigned char> colormap;
+std::vector<float> colormap1;
+std::vector<float> colormap2;
+std::vector<float> colormap3;
 bool should_set_colormap = false;
 
 std::mutex mutex;
@@ -77,7 +78,7 @@ void render()
     fractal->parameters = fractal_parameters;
     if (should_set_colormap)
     {
-        renderer->setColormap(&colormap[0], colormap.size() / 4);
+        renderer->setColormap(&colormap1[0], &colormap2[0], &colormap3[0], colormap1.size() / 3);
         should_set_colormap = false;
     }
     mutex.unlock();
@@ -140,16 +141,18 @@ int main(int argc, char *argv[])
         fractal_parameters.rotation_zycy = argv[i++]->f;
         mutex.unlock();
     });
-    st.add_method("buddhabrot_colormap", "", [](lo_arg **argv, int) {
+    st.add_method("buddhabrot_colormap", "bbb", [](lo_arg **argv, int argc) {
         mutex.lock();
         should_set_colormap = true;
-        unsigned char *ptr = reinterpret_cast<unsigned char *>(argv[0]->blob.data);
-        colormap.assign(ptr, ptr + argv[0]->blob.size);
+        float *ptr1 = reinterpret_cast<float *>(&argv[0]->blob.data);
+        float *ptr2 = reinterpret_cast<float *>(&argv[1]->blob.data);
+        float *ptr3 = reinterpret_cast<float *>(&argv[2]->blob.data);
+        colormap1.assign(ptr1, ptr1 + argv[0]->blob.size / 4);
+        colormap2.assign(ptr2, ptr2 + argv[1]->blob.size / 4);
+        colormap3.assign(ptr3, ptr3 + argv[2]->blob.size / 4);
         mutex.unlock();
     });
     st.start();
-
-    renderer->setColormap(Colormaps::Cubehelix_0_75, Colormaps::Cubehelix_0_75_size);
 
     while (!glfwWindowShouldClose(window))
     {

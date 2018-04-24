@@ -53,7 +53,7 @@ class BuddhabrotRenderer
     void render(int x, int y, int width, int height);
 
     void setScaler(float scaler);
-    void setColormap(unsigned char *colormap, int length);
+    void setColormap(float *cm1, float *cm2, float *cm3, int length);
 
     ~BuddhabrotRenderer();
 
