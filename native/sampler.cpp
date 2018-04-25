@@ -1,12 +1,15 @@
 #include "sampler.h"
 #include <math.h>
-#include <stdlib.h>
+#include <random>
+
+std::mt19937_64 rng(0);
+std::uniform_real_distribution<float> unif;
 
 struct sampler_t
 {
     int width;
     int height;
-    int multiplier;
+    int lower_bound;
     unsigned char *buffer;
     float *samples;
     int samples_size;
@@ -18,7 +21,7 @@ sampler_t *sampler_create()
     sampler_t *r = new sampler_t();
     r->width = 0;
     r->height = 0;
-    r->multiplier = 1;
+    r->lower_bound = 1;
     r->buffer = nullptr;
     r->samples = nullptr;
     r->samples_size = 0;
@@ -26,9 +29,9 @@ sampler_t *sampler_create()
     return r;
 }
 
-void sampler_set_multiplier(sampler_t *sampler, int multiplier)
+void sampler_set_lower_bound(sampler_t *sampler, int lower_bound)
 {
-    sampler->multiplier = multiplier;
+    sampler->lower_bound = lower_bound;
 }
 
 void sampler_set_size(sampler_t *sampler, int width, int height)
@@ -42,7 +45,8 @@ void sampler_set_size(sampler_t *sampler, int width, int height)
 
 inline float rand01()
 {
-    return (float)rand() / (float)RAND_MAX;
+    // return (float)rand() / (float)RAND_MAX;
+    return unif(rng);
 }
 
 inline float randn_bm()
@@ -63,12 +67,13 @@ void sampler_sample(sampler_t *sampler)
     unsigned char *array = sampler->buffer;
     int array_length = sampler->width * sampler->height;
     int total_value = 0;
-    int multipler = sampler->multiplier;
     for (int i = 0; i < array_length; i++)
     {
-        int v = (array[i]) * multipler;
+        int v = array[i];
         total_value += v;
     }
+    int multipler = 1 + sampler->lower_bound / total_value;
+    total_value *= multipler;
     if (sampler->samples == nullptr || sampler->samples_size < total_value)
     {
         sampler->samples_size = total_value * 2;

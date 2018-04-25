@@ -29,6 +29,9 @@ let default_rotations = {
     rotation_zxcy: 0,
     rotation_zycx: 0,
     rotation_zycy: 0,
+    translate_x: 0,
+    translate_y: 0,
+    scale: 0
 };
 
 export class Fractal {
@@ -150,7 +153,10 @@ export class Fractal {
             { name: "rotation_zxcx", type: "number", range: [-180, 180], step: 1 },
             { name: "rotation_zxcy", type: "number", range: [-180, 180], step: 1 },
             { name: "rotation_zycx", type: "number", range: [-180, 180], step: 1 },
-            { name: "rotation_zycy", type: "number", range: [-180, 180], step: 1 }
+            { name: "rotation_zycy", type: "number", range: [-180, 180], step: 1 },
+            { name: "translate_x", type: "number", range: [-3, 3] },
+            { name: "translate_y", type: "number", range: [-3, 3] },
+            { name: "scale", type: "number", range: [-8, 8] }
         ];
     }
 
@@ -159,6 +165,7 @@ export class Fractal {
             uniform mat2 fractal_z3_scaler;
             uniform mat2 fractal_z2_scaler;
             uniform mat2 fractal_z1_scaler;
+            uniform vec3 fractal_translate_scale;
             uniform vec4 fractal_rotation_e1;
             uniform vec4 fractal_rotation_e2;
 
@@ -171,7 +178,9 @@ export class Fractal {
             }
 
             vec2 ${name}_projection(vec2 z, vec2 c) {
-                return vec2(dot(fractal_rotation_e1, vec4(z, c)), dot(fractal_rotation_e2, vec4(z, c)));
+                vec4 w = vec4(z, c);
+                vec2 m = vec2(dot(fractal_rotation_e1, w), dot(fractal_rotation_e2, w));
+                return (m + fractal_translate_scale.yx) * fractal_translate_scale.z;
             }
         `
     }
@@ -202,6 +211,7 @@ export class Fractal {
 
         gl.uniform4fv(gl.getUniformLocation(shader, "fractal_rotation_e1"), e1);
         gl.uniform4fv(gl.getUniformLocation(shader, "fractal_rotation_e2"), e2);
+        gl.uniform3f(gl.getUniformLocation(shader, "fractal_translate_scale"), this.parameters.translate_x, this.parameters.translate_y, Math.pow(2, this.parameters.scale));
     }
 
     setParameter(name: string, value: number) {

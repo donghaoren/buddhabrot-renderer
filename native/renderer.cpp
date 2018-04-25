@@ -162,7 +162,7 @@ BuddhabrotSampler::BuddhabrotSampler(const BuddhabrotRendererOptions &_options) 
     mipmapSize = size >> options.samplerMipmapLevel;
     sampler = sampler_create();
     sampler_set_size(sampler, mipmapSize, mipmapSize);
-    sampler_set_multiplier(sampler, options.samplerMultiplier);
+    sampler_set_lower_bound(sampler, options.samplerLowerBound);
 
     glGenBuffers(1, &samplesBuffer);
 
@@ -362,9 +362,9 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
     glBindTexture(GL_TEXTURE_2D, 0);
 
     float default_colormap[][8] = {
-        {0, 0, 0, 1, 0, 0, 0.3, 1},
-        {0, 0, 0, 1, 0, 0.3, 0, 1},
-        {0, 0, 0, 1, 0.3, 0, 0, 1}};
+        {0, 0, 0, 0, 0, 0.3},
+        {0, 0, 0, 0, 0.3, 0},
+        {0, 0, 0, 0.3, 0, 0}};
     setColormap(default_colormap[0], default_colormap[1], default_colormap[2], 2);
 
     scaler = 1;

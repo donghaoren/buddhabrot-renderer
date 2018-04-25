@@ -29,7 +29,7 @@ void sampler_destroy(sampler_t *sampler);
 */
 var sampler_create = internals.cwrap("sampler_create", "number", []);
 var sampler_set_size = internals.cwrap("sampler_set_size", null, ["number", "number", "number"]);
-var sampler_set_multiplier = internals.cwrap("sampler_set_multiplier", null, ["number", "number"]);
+var sampler_set_lower_bound = internals.cwrap("sampler_set_lower_bound", null, ["number", "number"]);
 var sampler_sample = internals.cwrap("sampler_sample", null, ["number"]);
 var sampler_get_buffer = internals.cwrap("sampler_get_buffer", "number", ["number"]);
 var sampler_get_samples = internals.cwrap("sampler_get_samples", "number", ["number"]);
@@ -46,8 +46,8 @@ Sampler.prototype.setSize = function (w, h) {
     this.width = w;
     this.height = h;
 };
-Sampler.prototype.setMultiplier = function (m) {
-    sampler_set_multiplier(this.sampler, m);
+Sampler.prototype.setLowerBound = function (m) {
+    sampler_set_lower_bound(this.sampler, m);
 };
 Sampler.prototype.sample = function () {
     sampler_sample(this.sampler);

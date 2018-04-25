@@ -5,7 +5,7 @@ export interface BuddhabrotRendererOptions {
     samplerSize?: number;
     samplerMipmapLevel?: number;
     samplerMaxIterations?: number;
-    samplerMultiplier?: number;
+    samplerLowerBound?: number;
     renderSize?: number;
     renderIterations?: number;
 }
@@ -15,70 +15,37 @@ export interface BuddhabrotRendererProfile {
     options: BuddhabrotRendererOptions;
 }
 
+function makeProfile(name: string, lowerBound: number, size: number) {
+    return {
+        name: name, options: {
+            samplerSize: size,
+            samplerMipmapLevel: 1,
+            samplerMaxIterations: 512,
+            samplerLowerBound: lowerBound,
+            renderSize: 2048,
+            renderIterations: 256
+        }
+    };
+}
 const profiles: BuddhabrotRendererProfile[] = [
-    {
-        name: "Veryfast (low quality) 512/1", options: {
-            samplerSize: 512,
-            samplerMipmapLevel: 1,
-            samplerMaxIterations: 512,
-            samplerMultiplier: 1,
-            renderSize: 2048,
-            renderIterations: 256
-        }
-    },
-    {
-        name: "Fast 512/2", options: {
-            samplerSize: 512,
-            samplerMipmapLevel: 1,
-            samplerMaxIterations: 512,
-            samplerMultiplier: 2,
-            renderSize: 2048,
-            renderIterations: 256
-        }
-    },
-    {
-        name: "Default 512/4", options: {
-            samplerSize: 512,
-            samplerMipmapLevel: 1,
-            samplerMaxIterations: 512,
-            samplerMultiplier: 4,
-            renderSize: 2048,
-            renderIterations: 256
-        }
-    },
-    {
-        name: "Slow 512/8", options: {
-            samplerSize: 512,
-            samplerMipmapLevel: 1,
-            samplerMaxIterations: 512,
-            samplerMultiplier: 8,
-            renderSize: 2048,
-            renderIterations: 256
-        }
-    },
-    {
-        name: "Highres Fast (high quality) 1024/1", options: {
-            samplerSize: 1024,
-            samplerMipmapLevel: 1,
-            samplerMaxIterations: 512,
-            samplerMultiplier: 1,
-            renderSize: 2048,
-            renderIterations: 256
-        }
-    },
-    {
-        name: "Highres Slow (high quality) 1024/2", options: {
-            samplerSize: 1024,
-            samplerMipmapLevel: 1,
-            samplerMaxIterations: 512,
-            samplerMultiplier: 2,
-            renderSize: 2048,
-            renderIterations: 256
-        }
-    }
+    makeProfile("512/10k", 10000, 512),
+    makeProfile("512/20k", 20000, 512),
+    makeProfile("512/50k", 50000, 512),
+    makeProfile("512/100k", 100000, 512),
+    makeProfile("512/200k", 200000, 512),
+    makeProfile("1024/10k", 10000, 1024),
+    makeProfile("1024/20k", 20000, 1024),
+    makeProfile("1024/50k", 50000, 1024),
+    makeProfile("1024/100k", 100000, 1024),
+    makeProfile("1024/200k", 200000, 1024),
+    makeProfile("2048/10k", 10000, 2048),
+    makeProfile("2048/20k", 20000, 2048),
+    makeProfile("2048/50k", 50000, 2048),
+    makeProfile("2048/100k", 100000, 2048),
+    makeProfile("2048/200k", 200000, 2048),
 ];
 
-const default_profile = "Default 512/4";
+const default_profile = "512/50k";
 
 export class ShaderBuilder {
     private gl: WebGL2RenderingContext;
@@ -141,10 +108,12 @@ export class ShaderBuilder {
                 vec2 uv = gl_FragCoord.xy / u_resolution;
                 vec2 c = uv * 4.0 - vec2(2.0);
                 vec2 z = vec2(0.0);
+                vec2 pw;
                 vec2 z1;
                 bool escaped = false;
                 int number_iterations = 0;
-                for (int i = 0; i < 10000; i++) {
+                int num_contain = 0;
+                for (int i = 0; i < 256; i++) {
                     if (i >= u_maxIterations) {
                         number_iterations = i;
                         break;
@@ -155,14 +124,18 @@ export class ShaderBuilder {
                         break;
                     }
                     z = z1;
+                    pw = f_projection(z, c);
+                    if(pw.x >= -2.0 && pw.x <= 2.0 && pw.y >= -2.0 && pw.y <= 2.0) {
+                        num_contain++;
+                    }
                     if (length(z) > 4.0) {
                         escaped = true;
                         number_iterations = i;
                         break;
                     }
                 }
-                float v = float(number_iterations >= 16 ? number_iterations : 0) / 255.0;
-                gl_FragColor = escaped ? vec4(vec3(v), 1.0) : vec4(0, 0, 0, 1);
+                float v = float(number_iterations >= 16 ? num_contain : 0) / 255.0;
+                gl_FragColor = escaped && num_contain > 0 ? vec4(vec3(v), 1.0) : vec4(0, 0, 0, 1);
             }
         `;
         return this.compile(vs_code, fs_code);
@@ -323,7 +296,7 @@ export class MandelbrotSampler {
         this.mipmapSize = this.size >> this.mipmapLevel;
 
         this.sampler.setSize(this.mipmapSize, this.mipmapSize);
-        this.sampler.setMultiplier(this.options.samplerMultiplier);
+        this.sampler.setLowerBound(options.samplerLowerBound);
 
         // Create framebuffer texture (texture is used for its mipmap)
         this.framebufferTexture = gl.createTexture();
@@ -645,7 +618,7 @@ export class BuddhabrotRenderer {
         gl.uniform1i(gl.getUniformLocation(this.programColor, "texture"), 0);
         gl.uniform1i(gl.getUniformLocation(this.programColor, "textureColor"), 1);
         gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapSize"), this.colormapSize);
-        gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapScaler"), Math.pow(2, -this.exposure) * (this.options.renderIterations - 4) / 20000 * accumulateScaler / this.sampler.getScaler());
+        gl.uniform1f(gl.getUniformLocation(this.programColor, "colormapScaler"), Math.pow(2, -this.exposure) * (this.options.renderIterations - 4) / 20000 * accumulateScaler / this.sampler.getScaler() / Math.pow(2, 2 * this.fractal.parameters.scale));
 
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, this.textureColor);

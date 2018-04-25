@@ -10,7 +10,7 @@ struct BuddhabrotRendererOptions
     int samplerSize;
     int samplerMipmapLevel;
     int samplerMaxIterations;
-    int samplerMultiplier;
+    int samplerLowerBound;
     int renderSize;
     int renderIterations;
 

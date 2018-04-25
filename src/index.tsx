@@ -122,7 +122,7 @@ class FractalRenderer extends React.Component<{ fractal: Fractal, options: Buddh
         if (this.currentTimeout) cancelAnimationFrame(this.currentTimeout);
         this.currentTimeout = null;
         if (!this.renderer) return;
-        let N = 200;
+        let N = 20000;
         let index = 1;
         this.renderer.render(false, index);
         let renderNext = () => {

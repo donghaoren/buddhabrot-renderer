@@ -110,10 +110,10 @@ int main(int argc, char *argv[])
     glewInit();
 
     BuddhabrotRendererOptions options;
-    options.samplerSize = 1024;
+    options.samplerSize = 512;
     options.samplerMipmapLevel = 1;
-    options.samplerMaxIterations = 512;
-    options.samplerMultiplier = 1;
+    options.samplerMaxIterations = 256;
+    options.samplerLowerBound = 50000;
     options.renderSize = 2048;
     options.renderIterations = 64;
 

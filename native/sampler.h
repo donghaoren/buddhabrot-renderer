@@ -13,7 +13,7 @@ struct sampler_t;
 extern "C" {
 EXPORT sampler_t *sampler_create();
 EXPORT void sampler_set_size(sampler_t *sampler, int width, int height);
-EXPORT void sampler_set_multiplier(sampler_t *sampler, int multiplier);
+EXPORT void sampler_set_lower_bound(sampler_t *sampler, int lower_bound);
 EXPORT void sampler_sample(sampler_t *sampler);
 EXPORT unsigned char *sampler_get_buffer(sampler_t *sampler);
 EXPORT float *sampler_get_samples(sampler_t *sampler);
