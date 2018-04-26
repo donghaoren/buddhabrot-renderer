@@ -169,7 +169,7 @@ BuddhabrotSampler::BuddhabrotSampler(const BuddhabrotRendererOptions &_options) 
     assertGLError();
 }
 
-void BuddhabrotSampler::sample()
+void BuddhabrotSampler::render()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glViewport(0, 0, options.samplerSize, options.samplerSize);
@@ -185,7 +185,10 @@ void BuddhabrotSampler::sample()
     glGenerateMipmap(GL_TEXTURE_2D);
     glGetTexImage(GL_TEXTURE_2D, options.samplerMipmapLevel, GL_RED, GL_UNSIGNED_BYTE, sampler_get_buffer(sampler));
     glBindTexture(GL_TEXTURE_2D, 0);
+}
 
+void BuddhabrotSampler::sample()
+{
     sampler_sample(sampler);
 
     float *samples = sampler_get_samples(sampler);
@@ -403,20 +406,21 @@ void BuddhabrotRenderer::render(int x, int y, int width, int height)
 {
     glViewport(x, y, width, height);
     glDisable(GL_DEPTH_TEST);
-    sampler.sample();
+    sampler.render();
+
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
     glViewport(0, 0, options.renderSize, options.renderSize);
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
-    glClearColor(0, 0, 0, 0);
-    glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(program);
-    options.fractal->setShaderUniforms(program);
     glBindVertexArray(vertexArray);
+    options.fractal->setShaderUniforms(program);
+    sampler.sample();
     glDrawArrays(GL_POINTS, 0, sampler.getSamplesCount());
     glBindVertexArray(0);
     glUseProgram(0);
-
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glViewport(x, y, width, height);

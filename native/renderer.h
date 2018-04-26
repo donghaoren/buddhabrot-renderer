@@ -22,6 +22,7 @@ class BuddhabrotSampler
   public:
     BuddhabrotSampler(const BuddhabrotRendererOptions &options);
 
+    void render();
     void sample();
 
     GLuint getBuffer() { return samplesBuffer; }
