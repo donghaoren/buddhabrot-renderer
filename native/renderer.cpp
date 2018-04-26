@@ -138,8 +138,8 @@ BuddhabrotSampler::BuddhabrotSampler(const BuddhabrotRendererOptions &_options) 
                         break;
                     }
                 }
-                float v = float(i >= 16 ? i : 0) / 255.0;
-                frag_color = escaped ? vec4(vec3(v), 1.0) : vec4(0, 0, 0, 1);
+                float v = float(escaped && i >= 16 ? i : 0) / 255.0;
+                frag_color = vec4(vec3(v), 1.0);
             }
         )__CODE__"));
 
@@ -249,7 +249,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
         )__CODE__",
         std::string(R"__CODE__(#version 330
             layout(points) in;
-            layout(points, max_vertices = 256) out;
+            layout(points, max_vertices = 200) out;
             in vec3 vo_sample[1];
             out vec3 a_multiplier;
 
@@ -261,15 +261,16 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
                 vec2 z = vec2(0);
                 a_multiplier = vec3(vo_sample[0].z, 0, 0);
                 int diverge = 0;
-                for(int i = 0; i < 256; i++) {
+                for(int i = 0; i < 200; i++) {
                     z = fractal(z, c);
                     if(z.x * z.x + z.y * z.y >= 16.0) {
                         diverge = i;
                         break;
                     }
                 }
-                if(diverge < 80) a_multiplier = vec3(vo_sample[0].z, 0, 0);
-                else if(diverge < 160) a_multiplier = vec3(0, vo_sample[0].z, 0);
+                float spectrum = float(diverge) / 200.0 * 2.0;
+                if(spectrum < 0.3333) a_multiplier = vec3(vo_sample[0].z, 0, 0);
+                else if(spectrum < 0.6666) a_multiplier = vec3(0, vo_sample[0].z, 0);
                 else a_multiplier = vec3(0, 0, vo_sample[0].z);
                 z = vec2(0);
                 if(diverge != 0) {
@@ -281,17 +282,6 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
                         }
                     }
                 }
-
-                // for(int i = 0; i < 64; i++) {
-                //     z = fractal(z, c);
-                //     if(i >= 4) {
-                //         gl_Position = vec4(fractal_projection(z, c) / 2.0, 0, 1);
-                //         EmitVertex();
-                //     }
-                //     if(z.x * z.x + z.y * z.y >= 16.0) {
-                //         break;
-                //     }
-                // }
             }
         )__CODE__"),
         R"__CODE__(#version 330
@@ -419,9 +409,9 @@ void BuddhabrotRenderer::render(int x, int y, int width, int height)
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
     glUseProgram(program);
+    sampler.sample();
     glBindVertexArray(vertexArray);
     options.fractal->setShaderUniforms(program);
-    sampler.sample();
     glDrawArrays(GL_POINTS, 0, sampler.getSamplesCount());
     glBindVertexArray(0);
     glUseProgram(0);
@@ -456,15 +446,14 @@ void BuddhabrotRenderer::render(int x, int y, int width, int height)
 void nonLocalMeans(float *meanMap, float *varianceMap, float *denoiseMap, int width, int height)
 {
     auto get_pos = [width](int x, int y) { return (x + y * width) << 2; };
-    int B_size = 2;
-    int O_size = 3;
+    int B_size = 3;
+    int O_size = 5;
     tbb::parallel_for(tbb::blocked_range<int>(0, height), [=](const tbb::blocked_range<int> &range) {
         for (int y = range.begin(); y < range.end(); y++)
         {
             for (int x = 0; x < width; x++)
             {
                 int p = get_pos(x, y);
-                // float h2 = varianceMap[p];
                 float sigma2 = varianceMap[p];
                 float h2 = sigma2 * 0.1;
                 double f_sum = 0;
@@ -592,7 +581,7 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
         denoise_map[i] = mean;
     }
 
-    nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderSize, options.renderSize);
+    // nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderSize, options.renderSize);
 
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferOutput);
 

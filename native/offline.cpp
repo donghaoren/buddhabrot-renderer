@@ -6,11 +6,17 @@
 #include "renderer.h"
 #include "fractal.h"
 #include <stdio.h>
+#include <string>
 
 GLFWwindow *window;
 
 BuddhabrotRenderer *renderer;
 BuddhabrotFractal *fractal;
+
+float parseFloat(const char *str)
+{
+    return atof(str);
+}
 
 int main(int argc, char *argv[])
 {
@@ -33,12 +39,48 @@ int main(int argc, char *argv[])
     options.samplerSize = 1024;
     options.samplerMipmapLevel = 1;
     options.samplerMaxIterations = 256;
-    options.samplerLowerBound = 5000000 / 4;
-    options.renderSize = 1024;
+    options.samplerLowerBound = 5000000;
+    options.renderSize = 2048;
     options.renderIterations = 64;
 
     fractal = Fractal::CreateBuddhabrot();
     options.fractal = fractal;
+
+    std::string output_file("output.raw");
+
+    // Setup parameters
+    for (int i = 1; i < argc; i++)
+    {
+        std::string name = argv[i];
+        if (name == "-z3_scaler")
+            fractal->parameters.z3_scaler = parseFloat(argv[++i]);
+        if (name == "-z3_angle")
+            fractal->parameters.z3_angle = parseFloat(argv[++i]);
+        if (name == "-z3_yscale")
+            fractal->parameters.z3_yscale = parseFloat(argv[++i]);
+        if (name == "-z2_scaler")
+            fractal->parameters.z2_scaler = parseFloat(argv[++i]);
+        if (name == "-z2_angle")
+            fractal->parameters.z2_angle = parseFloat(argv[++i]);
+        if (name == "-z2_yscale")
+            fractal->parameters.z2_yscale = parseFloat(argv[++i]);
+        if (name == "-z1_scaler")
+            fractal->parameters.z1_scaler = parseFloat(argv[++i]);
+        if (name == "-z1_angle")
+            fractal->parameters.z1_angle = parseFloat(argv[++i]);
+        if (name == "-z1_yscale")
+            fractal->parameters.z1_yscale = parseFloat(argv[++i]);
+        if (name == "-rotation_zxcx")
+            fractal->parameters.rotation_zxcx = parseFloat(argv[++i]);
+        if (name == "-rotation_zxcy")
+            fractal->parameters.rotation_zxcy = parseFloat(argv[++i]);
+        if (name == "-rotation_zycx")
+            fractal->parameters.rotation_zycx = parseFloat(argv[++i]);
+        if (name == "-rotation_zycy")
+            fractal->parameters.rotation_zycy = parseFloat(argv[++i]);
+        if (name == "-output" || name == "-o")
+            output_file = argv[++i];
+    }
 
     renderer = new BuddhabrotRenderer(options);
 
@@ -68,10 +110,23 @@ int main(int argc, char *argv[])
 
     glReadPixels(0, 0, options.renderSize, options.renderSize, GL_RGBA, GL_UNSIGNED_BYTE, &pixels[0]);
 
+    int stride = options.renderSize * 4;
+    for (int y = 0; y < options.renderSize / 2; y++)
+    {
+        unsigned char *p1 = &pixels[y * stride];
+        unsigned char *p2 = &pixels[(options.renderSize - 1 - y) * stride];
+        for (int x = 0; x < stride; x++)
+        {
+            unsigned char tmp = p1[x];
+            p1[x] = p2[x];
+            p2[x] = tmp;
+        }
+    }
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Write the pixels to output
-    FILE *fo = fopen("output.raw", "wb");
+    FILE *fo = fopen(output_file.c_str(), "wb");
     fwrite(&pixels[0], sizeof(unsigned char), pixels.size(), fo);
     fclose(fo);
 
