@@ -70,6 +70,7 @@ function setColormap(v1, v2, v3) {
       buf1, buf2, buf3
     ]
   });
+  console.log(v1[v1.length - 1], v2[v2.length - 1], v3[v3.length -1])
 }
 
 

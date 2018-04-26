@@ -53,6 +53,8 @@ class BuddhabrotRenderer
 
     void render(int x, int y, int width, int height);
 
+    void renderWithDenoise(int x, int y, int width, int height, GLuint framebuffer);
+
     void setScaler(float scaler);
     void setColormap(float *cm1, float *cm2, float *cm3, int length);
 

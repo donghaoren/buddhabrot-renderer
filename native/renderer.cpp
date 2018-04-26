@@ -1,15 +1,19 @@
 #include <string>
 #include <iostream>
+#include <vector>
 #include <exception>
-
+#include <cmath>
 #include "renderer.h"
+#include "tbb/parallel_for.h"
 
-void assertGLError()
+#define assertGLError() __assertGLError(__FILE__, __LINE__)
+
+void __assertGLError(const char *filename, int line)
 {
     GLenum error = glGetError();
     if (error != 0)
     {
-        std::cerr << "OpenGL Error: " << error << std::endl;
+        std::cerr << "OpenGL Error (" << filename << ":" << line << "): " << error << std::endl;
     }
 }
 
@@ -332,9 +336,9 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
             }
 
             void main() {
-                float scale = colormapScaler * 4.0;
+                float scale = colormapScaler;
                 vec4 color = texture(texInput, vo_position);
-                vec3 v = min(vec3(1.0), sqrt(color.rgb / scale));
+                vec3 v = min(vec3(1.0), (color.rgb / scale));
                 vec3 cx = texture(texColor, vec2((v.x * (colormapSize - 0.5) + 0.5) / colormapSize, 1.0 / 6.0)).xyz;
                 vec3 cy = texture(texColor, vec2((v.y * (colormapSize - 0.5) + 0.5) / colormapSize, 0.5)).xyz;
                 vec3 cz = texture(texColor, vec2((v.z * (colormapSize - 0.5) + 0.5) / colormapSize, 5.0 / 6.0)).xyz;
@@ -365,9 +369,9 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
     glBindTexture(GL_TEXTURE_2D, 0);
 
     float default_colormap[][8] = {
-        {0, 0, 0, 0, 0, 0.3},
-        {0, 0, 0, 0, 0.3, 0},
-        {0, 0, 0, 0.3, 0, 0}};
+        {0, 0, 0, 0.2082, 0.1666, 0.7334},
+        {0, 0, 0, 0.3576, 0.7152, 0.1192},
+        {0, 0, 0, 0.4125, 0.2127, 0.0193}};
     setColormap(default_colormap[0], default_colormap[1], default_colormap[2], 2);
 
     scaler = 1;
@@ -433,7 +437,180 @@ void BuddhabrotRenderer::render(int x, int y, int width, int height)
     int accumulateScaler = 1;
     float colormapScaler = scaler * (options.renderIterations - 4) / 1000.0 * accumulateScaler;
     colormapScaler /= 256.0 * 256.0 / (options.samplerSize >> options.samplerMipmapLevel) / (options.samplerSize >> options.samplerMipmapLevel);
+    colormapScaler *= 4;
     glUniform1f(glGetUniformLocation(programDisplay, "colormapScaler"), colormapScaler);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, colormapTexture);
+    glBindVertexArray(vertexArrayQuad);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+    glUseProgram(0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void nonLocalMeans(float *meanMap, float *varianceMap, float *denoiseMap, int width, int height)
+{
+    auto get_pos = [width](int x, int y) { return (x + y * width) << 2; };
+    int B_size = 2;
+    int O_size = 3;
+    tbb::parallel_for(tbb::blocked_range<int>(0, height), [=](const tbb::blocked_range<int> &range) {
+        for (int y = range.begin(); y < range.end(); y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                int p = get_pos(x, y);
+                // float h2 = varianceMap[p];
+                float sigma2 = varianceMap[p];
+                float h2 = sigma2 * 0.1;
+                double f_sum = 0;
+                double fv_sum1 = 0;
+                double fv_sum2 = 0;
+                double fv_sum3 = 0;
+                for (int oy = -O_size; oy <= O_size; oy++)
+                {
+                    for (int ox = -O_size; ox <= O_size; ox++)
+                    {
+                        if (x + ox >= 0 && x + ox < width && y + oy >= 0 && y + oy < height)
+                        {
+                            float sum_diff = 0;
+                            int count = 0;
+                            for (int by = -B_size; by <= B_size; by++)
+                            {
+                                for (int bx = -B_size; bx <= B_size; bx++)
+                                {
+                                    if (x + ox + bx >= 0 && x + ox + bx < width && y + oy + by >= 0 && y + oy + by < height)
+                                    {
+                                        if (x + bx >= 0 && x + bx < width && y + by >= 0 && y + by < height)
+                                        {
+                                            count += 3;
+                                            int p1 = get_pos(x + bx, y + by);
+                                            int p2 = get_pos(x + ox + bx, y + oy + by);
+                                            float diff;
+                                            diff = meanMap[p1++] - meanMap[p2++];
+                                            sum_diff += diff * diff;
+                                            diff = meanMap[p1++] - meanMap[p2++];
+                                            sum_diff += diff * diff;
+                                            diff = meanMap[p1++] - meanMap[p2++];
+                                            sum_diff += diff * diff;
+                                        }
+                                    }
+                                }
+                            }
+                            float B2 = sum_diff / count;
+                            float f = std::exp(-B2 / h2);
+                            if (f == f)
+                            {
+                                int m = get_pos(x + ox, y + oy);
+                                f_sum += f;
+                                fv_sum1 += f * meanMap[m++];
+                                fv_sum2 += f * meanMap[m++];
+                                fv_sum3 += f * meanMap[m++];
+                            }
+                        }
+                    }
+                }
+                if (f_sum != 0)
+                {
+                    denoiseMap[p++] = fv_sum1 / f_sum;
+                    denoiseMap[p++] = fv_sum2 / f_sum;
+                    denoiseMap[p++] = fv_sum3 / f_sum;
+                }
+            }
+        }
+    });
+}
+
+void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, GLuint framebufferOutput)
+{
+    // First, compute the importance map
+    glViewport(x, y, width, height);
+    glDisable(GL_DEPTH_TEST);
+    sampler.render();
+
+    assertGLError();
+
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glClearColor(0, 0, 0, 0);
+
+    int N_frames = 20;
+    std::vector<std::vector<float>> frame_samples(N_frames);
+
+    for (int i_frame = 0; i_frame < N_frames; i_frame++)
+    {
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        glViewport(0, 0, options.renderSize, options.renderSize);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+        glUseProgram(program);
+        glBindVertexArray(vertexArray);
+        options.fractal->setShaderUniforms(program);
+        sampler.sample();
+        glDrawArrays(GL_POINTS, 0, sampler.getSamplesCount());
+        glBindVertexArray(0);
+        glUseProgram(0);
+
+        // Read the buffer back
+        frame_samples[i_frame].resize(options.renderSize * options.renderSize * 4);
+
+        glReadPixels(0, 0, options.renderSize, options.renderSize, GL_RGBA, GL_FLOAT, &frame_samples[i_frame][0]);
+
+        assertGLError();
+    }
+
+    // Combine the samples
+    std::vector<float> mean_map(options.renderSize * options.renderSize * 4);
+    std::vector<float> variance_map(options.renderSize * options.renderSize * 4);
+    std::vector<float> denoise_map(options.renderSize * options.renderSize * 4);
+
+    int accumulateScaler = 1;
+    float colormapScaler = scaler * (options.renderIterations - 4) / 1000.0 * accumulateScaler;
+    colormapScaler /= 256.0 * 256.0 / (options.samplerSize >> options.samplerMipmapLevel) / (options.samplerSize >> options.samplerMipmapLevel);
+    colormapScaler /= (float)options.renderSize / 2048.0;
+    colormapScaler /= (float)options.renderSize / 2048.0;
+    colormapScaler *= 4.0;
+
+    for (int i = 0; i < options.renderSize * options.renderSize * 4; i++)
+    {
+        float sum = 0;
+        float sum2 = 0;
+        for (int i_frame = 0; i_frame < N_frames; i_frame++)
+        {
+            frame_samples[i_frame][i] /= colormapScaler;
+            // frame_samples[i_frame][i] = (frame_samples[i_frame][i]);
+            sum += frame_samples[i_frame][i];
+            sum2 += frame_samples[i_frame][i] * frame_samples[i_frame][i];
+        }
+        float mean = sum / N_frames;
+        mean_map[i] = mean;
+        variance_map[i] = sum2 / N_frames - mean * mean;
+        denoise_map[i] = mean;
+    }
+
+    nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderSize, options.renderSize);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, framebufferOutput);
+
+    glBindTexture(GL_TEXTURE_2D, framebufferTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, options.renderSize, options.renderSize, 0, GL_RGBA, GL_FLOAT, &denoise_map[0]);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    assertGLError();
+
+    glViewport(x, y, width, height);
+
+    glDisable(GL_BLEND);
+    glUseProgram(programDisplay);
+    glUniform1i(glGetUniformLocation(programDisplay, "texInput"), 0);
+    glUniform1i(glGetUniformLocation(programDisplay, "texColor"), 1);
+    glUniform1f(glGetUniformLocation(programDisplay, "colormapSize"), colormapLength);
+
+    glUniform1f(glGetUniformLocation(programDisplay, "colormapScaler"), 1.0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, framebufferTexture);
     glGenerateMipmap(GL_TEXTURE_2D);

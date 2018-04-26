@@ -248,7 +248,7 @@ export class ShaderBuilder {
             void main() {
                 float scale = colormapScaler * 4.0;
                 vec4 color = texture2D(texture, vo_position);
-                vec3 v = min(vec3(1.0), sqrt(color.rgb / scale));
+                vec3 v = min(vec3(1.0), (color.rgb / scale));
                 vec3 cx = texture2D(textureColor, vec2((v.x * (colormapSize - 0.5) + 0.5) / colormapSize, 1.0 / 6.0)).xyz;
                 vec3 cy = texture2D(textureColor, vec2((v.y * (colormapSize - 0.5) + 0.5) / colormapSize, 0.5)).xyz;
                 vec3 cz = texture2D(textureColor, vec2((v.z * (colormapSize - 0.5) + 0.5) / colormapSize, 5.0 / 6.0)).xyz;
