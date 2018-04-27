@@ -1,9 +1,9 @@
 var child_process = require("child_process");
 
 var animation = require("./animation-1.json");
-var speed = 3;
+var speed = 5;
 var fps = 60;
-var total_frames = (animation.length - 1) * speed * fps;
+var total_frames = Math.round((animation.length - 1) * speed * fps);
 
 function interp_paramters(a, b, t) {
     let r = {};
@@ -13,7 +13,9 @@ function interp_paramters(a, b, t) {
     return r;
 }
 
-for (let frame = 0; frame <= total_frames; frame++) {
+for (let frame = 405; frame <= total_frames; frame++) {
+    let t0 = new Date().getTime();
+
     let timestamp = frame / fps;
     let s = timestamp / speed;
     let i1 = Math.floor(s);
@@ -32,5 +34,9 @@ for (let frame = 0; frame <= total_frames; frame++) {
         f = "0" + f;
     }
     child_process.spawnSync("./offline", [...parameter_array, "-output", "animation/frame-" + f + ".raw"]);
-    child_process.spawn("python", ["convert_image.py", "animation/frame-" + f + ".raw", "animation/frame-" + f + ".png"]);
+    child_process.spawnSync("python", ["convert_image.py", "animation/frame-" + f + ".raw", "animation/frame-" + f + ".png"]);
+
+    let t1 = new Date().getTime();
+    let tFrame = (t1 - t0) / 1000;
+    console.log(`${tFrame.toFixed(1)}s per frame. Estimated time left: ${(((total_frames - frame) * tFrame) / 3600).toFixed(1)} hours`);
 }

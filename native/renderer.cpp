@@ -581,7 +581,7 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
         denoise_map[i] = mean;
     }
 
-    // nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderSize, options.renderSize);
+    nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderSize, options.renderSize);
 
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferOutput);
 
