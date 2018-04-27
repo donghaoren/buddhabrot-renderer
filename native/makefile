@@ -12,10 +12,10 @@ clean:
 	rm sampler_wasm.js
 
 renderer: $(wildcard *.cpp) $(wildcard *.h) makefile
-	g++ main.cpp renderer.cpp fractal.cpp sampler.cpp -o renderer $(CXXFLAGS)
+	g++ main.cpp renderer.cpp fractal.cpp sampler.cpp colormaps.cpp -o renderer $(CXXFLAGS)
 
 offline: $(wildcard *.cpp) $(wildcard *.h) makefile
-	g++ offline.cpp renderer.cpp fractal.cpp sampler.cpp -o offline $(CXXFLAGS)
+	g++ offline.cpp renderer.cpp fractal.cpp sampler.cpp colormaps.cpp -o offline $(CXXFLAGS)
 
 sampler_wasm.js: sampler.cpp sampler.h
 	emcc -std=c++11 \
