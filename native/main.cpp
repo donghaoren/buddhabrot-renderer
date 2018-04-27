@@ -123,6 +123,8 @@ int main(int argc, char *argv[])
     std::cout << "  GL_MAX_GEOMETRY_OUTPUT_VERTICES = " << value << std::endl;
     glGetIntegerv(GL_MAX_GEOMETRY_OUTPUT_COMPONENTS, &value);
     std::cout << "  GL_MAX_GEOMETRY_OUTPUT_COMPONENTS = " << value << std::endl;
+    glGetIntegerv(GL_MAX_GEOMETRY_TOTAL_OUTPUT_COMPONENTS, &value);
+    std::cout << "  GL_MAX_GEOMETRY_TOTAL_OUTPUT_COMPONENTS = " << value << std::endl;
 
     BuddhabrotRendererOptions options;
     options.samplerSize = 512;
