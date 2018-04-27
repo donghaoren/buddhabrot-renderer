@@ -262,7 +262,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
                 vec2 z = vec2(0);
                 a_multiplier = vec3(vo_sample[0].z, 0, 0);
                 int diverge = 0;
-                for(int i = 0; i < 200; i++) {
+                for(int i = 0; i < 256; i++) {
                     z = fractal(z, c);
                     if(z.x * z.x + z.y * z.y >= 16.0) {
                         diverge = i;
@@ -275,6 +275,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
                 else a_multiplier = vec3(0, 0, vo_sample[0].z);
                 z = vec2(0);
                 if(diverge != 0) {
+                    if(diverge > 200) diverge = 200;
                     for(int i = 0; i < diverge; i++) {
                         z = fractal(z, c);
                         if(i >= 1) {
@@ -564,7 +565,7 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
     std::vector<float> denoise_map(options.renderWidth * options.renderHeight * 4);
 
     int accumulateScaler = 1;
-    float colormapScaler = scaler * (options.renderIterations - 4) / 2000.0 * accumulateScaler;
+    float colormapScaler = scaler * (options.renderIterations - 4) / 4000.0 * accumulateScaler;
     colormapScaler /= 256.0 * 256.0 / (options.samplerSize >> options.samplerMipmapLevel) / (options.samplerSize >> options.samplerMipmapLevel);
     colormapScaler /= (float)options.renderHeight / 2048.0;
     colormapScaler /= (float)options.renderHeight / 2048.0;
@@ -587,7 +588,7 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
         denoise_map[i] = mean;
     }
 
-    // nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderWidth, options.renderHeight);
+    nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderWidth, options.renderHeight);
 
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferOutput);
 
