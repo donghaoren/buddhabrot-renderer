@@ -138,7 +138,7 @@ BuddhabrotSampler::BuddhabrotSampler(const BuddhabrotRendererOptions &_options) 
                         break;
                     }
                 }
-                float v = float(escaped && i >= 16 ? i : 0) / 255.0;
+                float v = float(escaped ? i : 0) / 255.0;
                 frag_color = vec4(vec3(v), 1.0);
             }
         )__CODE__"));
