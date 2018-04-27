@@ -83,7 +83,11 @@ GLuint compile_shader_program(std::string vs_code, std::string gs_code, std::str
     glGetProgramiv(program, GL_LINK_STATUS, v);
     if (v[0] != GL_TRUE)
     {
-        std::cerr << "program link error!" << std::endl;
+        char buffer[4096] = {0};
+        GLsizei length;
+        glGetProgramInfoLog(program, 4095, &length, buffer);
+        std::cerr << "program link error - message:" << std::endl;
+        std::cerr << buffer << std::endl;
         throw ShaderCompileError();
     }
     return program;
