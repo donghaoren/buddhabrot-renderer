@@ -3,12 +3,16 @@
 #include <mutex>
 #include <vector>
 
+#ifdef ENABLE_OSC
+
 #ifndef WIN32
 #include <unistd.h>
 #endif
 
 #include <lo/lo.h>
 #include <lo/lo_cpp.h>
+
+#endif
 
 #include "opengl.h"
 #include "renderer.h"
@@ -110,6 +114,16 @@ int main(int argc, char *argv[])
 
     glewInit();
 
+    // Print OpenGL capacities
+    std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "Capacities:" << std::endl;
+    GLint value;
+    glGetIntegerv(GL_MAX_GEOMETRY_OUTPUT_VERTICES, &value);
+    std::cout << "  GL_MAX_GEOMETRY_OUTPUT_VERTICES = " << value << std::endl;
+    glGetIntegerv(GL_MAX_GEOMETRY_OUTPUT_COMPONENTS, &value);
+    std::cout << "  GL_MAX_GEOMETRY_OUTPUT_COMPONENTS = " << value << std::endl;
+
     BuddhabrotRendererOptions options;
     options.samplerSize = 512;
     options.samplerMipmapLevel = 1;
@@ -130,6 +144,7 @@ int main(int argc, char *argv[])
         Colormaps::Default3__red,
         Colormaps::Default1__royalblue_size);
 
+#ifdef ENABLE_OSC
     lo::ServerThread st(9000);
     st.add_method("buddhabrot_parameters", "fffffffffffff", [](lo_arg **argv, int) {
         int i = 0;
@@ -161,6 +176,8 @@ int main(int argc, char *argv[])
         mutex.unlock();
     });
     st.start();
+    std::cout << "OSC Listening at port 9000" << std::endl;
+#endif
 
     while (!glfwWindowShouldClose(window))
     {
