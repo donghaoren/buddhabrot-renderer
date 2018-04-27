@@ -269,7 +269,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
                         break;
                     }
                 }
-                float spectrum = float(diverge) / 200.0 * 2.0;
+                float spectrum = float(diverge) / 160.0;
                 if(spectrum < 0.3333) a_multiplier = vec3(vo_sample[0].z, 0, 0);
                 else if(spectrum < 0.6666) a_multiplier = vec3(0, vo_sample[0].z, 0);
                 else a_multiplier = vec3(0, 0, vo_sample[0].z);
@@ -430,7 +430,7 @@ void BuddhabrotRenderer::render(int x, int y, int width, int height)
     glUniform1i(glGetUniformLocation(programDisplay, "texColor"), 1);
     glUniform1f(glGetUniformLocation(programDisplay, "colormapSize"), colormapLength);
     int accumulateScaler = 1;
-    float colormapScaler = scaler * (options.renderIterations - 4) / 1000.0 * accumulateScaler;
+    float colormapScaler = scaler * (options.renderIterations - 4) / 2000.0 * accumulateScaler;
     colormapScaler /= 256.0 * 256.0 / (options.samplerSize >> options.samplerMipmapLevel) / (options.samplerSize >> options.samplerMipmapLevel);
     colormapScaler *= 4;
     glUniform1f(glGetUniformLocation(programDisplay, "colormapScaler"), colormapScaler);
@@ -564,7 +564,7 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
     std::vector<float> denoise_map(options.renderWidth * options.renderHeight * 4);
 
     int accumulateScaler = 1;
-    float colormapScaler = scaler * (options.renderIterations - 4) / 1000.0 * accumulateScaler;
+    float colormapScaler = scaler * (options.renderIterations - 4) / 2000.0 * accumulateScaler;
     colormapScaler /= 256.0 * 256.0 / (options.samplerSize >> options.samplerMipmapLevel) / (options.samplerSize >> options.samplerMipmapLevel);
     colormapScaler /= (float)options.renderHeight / 2048.0;
     colormapScaler /= (float)options.renderHeight / 2048.0;
@@ -587,7 +587,7 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
         denoise_map[i] = mean;
     }
 
-    nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderWidth, options.renderHeight);
+    // nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderWidth, options.renderHeight);
 
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferOutput);
 

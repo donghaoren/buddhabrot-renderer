@@ -16,7 +16,7 @@ var rotation_zxcy = 0;
 var rotation_zycx = 0;
 var rotation_zycy = 0;
 
-var animation = require("./animation-6.json");
+var animation = require("./animation-1.json");
 var colormaps = require("../data/colormaps_generated.json");
 
 function post_parameters(params) {

@@ -1,11 +1,11 @@
 var child_process = require("child_process");
 
 var animation = require("./animation-1.json");
-var speed = 5;
+var speed = 1.0 / 60.0;
 var fps = 60;
-var width = 3840;
-var height = 2160;
-var samples = 4000000;
+var width = 1920;
+var height = 1080;
+var samples = 1000000;
 var total_frames = Math.round((animation.length - 1) * speed * fps);
 
 function interp_paramters(a, b, t) {

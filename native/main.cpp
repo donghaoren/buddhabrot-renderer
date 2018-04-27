@@ -13,6 +13,7 @@
 #include "opengl.h"
 #include "renderer.h"
 #include "fractal.h"
+#include "colormaps.h"
 
 GLFWwindow *window;
 
@@ -122,6 +123,12 @@ int main(int argc, char *argv[])
     options.fractal = fractal;
 
     renderer = new BuddhabrotRenderer(options);
+
+    renderer->setColormap(
+        Colormaps::Default1__royalblue,
+        Colormaps::Default2__lime,
+        Colormaps::Default3__red,
+        Colormaps::Default1__royalblue_size);
 
     lo::ServerThread st(9000);
     st.add_method("buddhabrot_parameters", "fffffffffffff", [](lo_arg **argv, int) {

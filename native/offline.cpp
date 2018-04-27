@@ -5,6 +5,7 @@
 #include "opengl.h"
 #include "renderer.h"
 #include "fractal.h"
+#include "colormaps.h"
 #include <stdio.h>
 #include <string>
 
@@ -95,6 +96,11 @@ int main(int argc, char *argv[])
     }
 
     renderer = new BuddhabrotRenderer(options);
+    renderer->setColormap(
+        Colormaps::Default1__royalblue,
+        Colormaps::Default2__lime,
+        Colormaps::Default3__red,
+        Colormaps::Default1__royalblue_size);
 
     GLuint framebufferTexture;
     GLuint framebuffer;
