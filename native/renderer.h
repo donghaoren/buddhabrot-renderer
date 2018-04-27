@@ -11,7 +11,8 @@ struct BuddhabrotRendererOptions
     int samplerMipmapLevel;
     int samplerMaxIterations;
     int samplerLowerBound;
-    int renderSize;
+    int renderWidth;
+    int renderHeight;
     int renderIterations;
 
     Fractal *fractal;

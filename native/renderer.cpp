@@ -222,7 +222,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, options.renderSize, options.renderSize, 0, GL_RGBA, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, options.renderWidth, options.renderHeight, 0, GL_RGBA, GL_FLOAT, nullptr);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     // Create framebuffer and assign the texture
@@ -250,6 +250,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
         std::string(R"__CODE__(#version 330
             layout(points) in;
             layout(points, max_vertices = 200) out;
+            uniform float u_aspect_ratio;
             in vec3 vo_sample[1];
             out vec3 a_multiplier;
 
@@ -277,7 +278,10 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
                     for(int i = 0; i < diverge; i++) {
                         z = fractal(z, c);
                         if(i >= 1) {
-                            gl_Position = vec4(fractal_projection(z, c) / 2.0, 0, 1);
+                            vec2 pos = fractal_projection(z, c).yx / 2.0;
+                            pos.y = -pos.y;
+                            pos.x /= u_aspect_ratio;
+                            gl_Position = vec4(pos, 0, 1);
                             EmitVertex();
                         }
                     }
@@ -297,7 +301,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
             layout(location = 0) in vec2 a_position;
             out vec2 vo_position;
             void main () {
-                vo_position = (vec2(-a_position.y, a_position.x) + 1.0) / 2.0;
+                vo_position = (a_position + 1.0) / 2.0;
                 gl_Position = vec4(a_position, 0, 1);
             }
         )__CODE__",
@@ -405,13 +409,14 @@ void BuddhabrotRenderer::render(int x, int y, int width, int height)
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT);
-    glViewport(0, 0, options.renderSize, options.renderSize);
+    glViewport(0, 0, options.renderWidth, options.renderHeight);
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
     glUseProgram(program);
     sampler.sample();
     glBindVertexArray(vertexArray);
     options.fractal->setShaderUniforms(program);
+    glUniform1f(glGetUniformLocation(program, "u_aspect_ratio"), (float)options.renderWidth / (float)options.renderHeight);
     glDrawArrays(GL_POINTS, 0, sampler.getSamplesCount());
     glBindVertexArray(0);
     glUseProgram(0);
@@ -533,10 +538,11 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
     {
 
         glClear(GL_COLOR_BUFFER_BIT);
-        glViewport(0, 0, options.renderSize, options.renderSize);
+        glViewport(0, 0, options.renderWidth, options.renderHeight);
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE);
         glUseProgram(program);
+        glUniform1f(glGetUniformLocation(program, "u_aspect_ratio"), (float)options.renderWidth / (float)options.renderHeight);
         glBindVertexArray(vertexArray);
         options.fractal->setShaderUniforms(program);
         sampler.sample();
@@ -545,26 +551,26 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
         glUseProgram(0);
 
         // Read the buffer back
-        frame_samples[i_frame].resize(options.renderSize * options.renderSize * 4);
+        frame_samples[i_frame].resize(options.renderWidth * options.renderHeight * 4);
 
-        glReadPixels(0, 0, options.renderSize, options.renderSize, GL_RGBA, GL_FLOAT, &frame_samples[i_frame][0]);
+        glReadPixels(0, 0, options.renderWidth, options.renderHeight, GL_RGBA, GL_FLOAT, &frame_samples[i_frame][0]);
 
         assertGLError();
     }
 
     // Combine the samples
-    std::vector<float> mean_map(options.renderSize * options.renderSize * 4);
-    std::vector<float> variance_map(options.renderSize * options.renderSize * 4);
-    std::vector<float> denoise_map(options.renderSize * options.renderSize * 4);
+    std::vector<float> mean_map(options.renderWidth * options.renderHeight * 4);
+    std::vector<float> variance_map(options.renderWidth * options.renderHeight * 4);
+    std::vector<float> denoise_map(options.renderWidth * options.renderHeight * 4);
 
     int accumulateScaler = 1;
     float colormapScaler = scaler * (options.renderIterations - 4) / 1000.0 * accumulateScaler;
     colormapScaler /= 256.0 * 256.0 / (options.samplerSize >> options.samplerMipmapLevel) / (options.samplerSize >> options.samplerMipmapLevel);
-    colormapScaler /= (float)options.renderSize / 2048.0;
-    colormapScaler /= (float)options.renderSize / 2048.0;
+    colormapScaler /= (float)options.renderHeight / 2048.0;
+    colormapScaler /= (float)options.renderHeight / 2048.0;
     colormapScaler *= 4.0;
 
-    for (int i = 0; i < options.renderSize * options.renderSize * 4; i++)
+    for (int i = 0; i < options.renderWidth * options.renderHeight * 4; i++)
     {
         float sum = 0;
         float sum2 = 0;
@@ -581,12 +587,12 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
         denoise_map[i] = mean;
     }
 
-    nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderSize, options.renderSize);
+    nonLocalMeans(&mean_map[0], &variance_map[0], &denoise_map[0], options.renderWidth, options.renderHeight);
 
     glBindFramebuffer(GL_FRAMEBUFFER, framebufferOutput);
 
     glBindTexture(GL_TEXTURE_2D, framebufferTexture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, options.renderSize, options.renderSize, 0, GL_RGBA, GL_FLOAT, &denoise_map[0]);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, options.renderWidth, options.renderHeight, 0, GL_RGBA, GL_FLOAT, &denoise_map[0]);
     glBindTexture(GL_TEXTURE_2D, 0);
 
     assertGLError();

@@ -3,6 +3,9 @@ var child_process = require("child_process");
 var animation = require("./animation-1.json");
 var speed = 5;
 var fps = 60;
+var width = 3840;
+var height = 2160;
+var samples = 4000000;
 var total_frames = Math.round((animation.length - 1) * speed * fps);
 
 function interp_paramters(a, b, t) {
@@ -13,7 +16,7 @@ function interp_paramters(a, b, t) {
     return r;
 }
 
-for (let frame = 405; frame <= total_frames; frame++) {
+for (let frame = 0; frame <= total_frames; frame++) {
     let t0 = new Date().getTime();
 
     let timestamp = frame / fps;
@@ -33,8 +36,8 @@ for (let frame = 405; frame <= total_frames; frame++) {
     while (f.length < 5) {
         f = "0" + f;
     }
-    child_process.spawnSync("./offline", [...parameter_array, "-output", "animation/frame-" + f + ".raw"]);
-    child_process.spawnSync("python", ["convert_image.py", "animation/frame-" + f + ".raw", "animation/frame-" + f + ".png"]);
+    child_process.spawnSync("./offline", [...parameter_array, "-output", "animation/frame-" + f + ".raw", "-width", width, "-height", height, "-samples", samples]);
+    child_process.spawnSync("python", ["convert_image.py", "animation/frame-" + f + ".raw", "animation/frame-" + f + ".png", width, height]);
 
     let t1 = new Date().getTime();
     let tFrame = (t1 - t0) / 1000;

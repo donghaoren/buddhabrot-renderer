@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    window = glfwCreateWindow(800, 800, "Buddhabrot Renderer", nullptr, nullptr);
+    window = glfwCreateWindow(900, 600, "Buddhabrot Renderer", nullptr, nullptr);
 
     glfwMakeContextCurrent(window);
 
@@ -114,7 +114,8 @@ int main(int argc, char *argv[])
     options.samplerMipmapLevel = 1;
     options.samplerMaxIterations = 256;
     options.samplerLowerBound = 100000;
-    options.renderSize = 2048;
+    options.renderWidth = 2048;
+    options.renderHeight = 2048;
     options.renderIterations = 64;
 
     fractal = Fractal::CreateBuddhabrot();
