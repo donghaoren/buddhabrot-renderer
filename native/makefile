@@ -8,8 +8,8 @@ wasm: sampler_wasm.js
 
 .PHONY: clean
 clean:
-	rm renderer
-	rm sampler_wasm.js
+	rm -rf renderer offline
+	rm -rf sampler_wasm.js
 
 renderer: $(wildcard *.cpp) $(wildcard *.h) makefile
 	g++ main.cpp renderer.cpp fractal.cpp sampler.cpp colormaps.cpp -o renderer $(CXXFLAGS)

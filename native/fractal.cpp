@@ -26,6 +26,7 @@ std::string BuddhabrotFractal::getShaderFunction()
             }
 
             vec2 fractal_projection(vec2 z, vec2 c) {
+                // return c;
                 return vec2(dot(fractal_rotation_e1, vec4(z, c)), dot(fractal_rotation_e2, vec4(z, c)));
             }
         )_CODE_";

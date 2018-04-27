@@ -257,7 +257,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
         )__CODE__",
         std::string(R"__CODE__(#version 330
             layout(points) in;
-            layout(points, max_vertices = 200) out;
+            layout(points, max_vertices = 256) out;
             uniform float u_aspect_ratio;
             in vec3 vo_sample[1];
             out vec3 a_multiplier;
@@ -283,7 +283,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
                 else a_multiplier = vec3(0, 0, vo_sample[0].z);
                 z = vec2(0);
                 if(diverge >= 24) {
-                    if(diverge > 200) diverge = 200;
+                    if(diverge > 256) diverge = 256;
                     for(int i = 0; i < diverge; i++) {
                         z = fractal(z, c);
                         if(i >= 1) {
