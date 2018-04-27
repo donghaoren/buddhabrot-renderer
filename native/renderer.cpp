@@ -138,7 +138,7 @@ BuddhabrotSampler::BuddhabrotSampler(const BuddhabrotRendererOptions &_options) 
                         break;
                     }
                 }
-                float v = float(escaped ? i : 0) / 255.0;
+                float v = float(escaped && i >= 16 ? i : 0) / 255.0;
                 frag_color = vec4(vec3(v), 1.0);
             }
         )__CODE__"));
@@ -274,7 +274,7 @@ BuddhabrotRenderer::BuddhabrotRenderer(const BuddhabrotRendererOptions &_options
                 else if(spectrum < 0.6666) a_multiplier = vec3(0, vo_sample[0].z, 0);
                 else a_multiplier = vec3(0, 0, vo_sample[0].z);
                 z = vec2(0);
-                if(diverge != 0) {
+                if(diverge >= 24) {
                     if(diverge > 200) diverge = 200;
                     for(int i = 0; i < diverge; i++) {
                         z = fractal(z, c);
