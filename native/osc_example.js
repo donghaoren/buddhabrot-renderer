@@ -1,6 +1,6 @@
 var osc = require('node-osc');
 
-var client = new osc.Client('127.0.0.1', 9000);
+var client = new osc.Client('127.0.0.1', 8001);
 
 var z3_scaler = 0;
 var z3_angle = 0;
@@ -72,12 +72,19 @@ function setColormap(v1, v2, v3) {
   });
 }
 
+function findColormap(name) {
+  for(let x of colormaps) {
+    if(x.name == name) {
+      return x;
+    }
+  }
+}
 
 let t0 = new Date().getTime();
 setInterval(() => {
   let t1 = new Date().getTime();
   let time = (t1 - t0) / 1000;
-  let s = (time / 10) % (animation.length - 1)
+  let s = (time / 3) % (animation.length - 1)
   let i1 = Math.floor(s);
   let i2 = i1 + 1;
   i1 = Math.min(animation.length - 1, i1);

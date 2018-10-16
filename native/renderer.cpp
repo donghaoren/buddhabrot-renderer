@@ -577,7 +577,7 @@ void BuddhabrotRenderer::renderWithDenoise(int x, int y, int width, int height, 
     colormapScaler /= 256.0 * 256.0 / (options.samplerSize >> options.samplerMipmapLevel) / (options.samplerSize >> options.samplerMipmapLevel);
     colormapScaler /= (float)options.renderHeight / 2048.0;
     colormapScaler /= (float)options.renderHeight / 2048.0;
-    colormapScaler *= 4.0;
+    colormapScaler *= 2.0;
 
     for (int i = 0; i < options.renderWidth * options.renderHeight * 4; i++)
     {

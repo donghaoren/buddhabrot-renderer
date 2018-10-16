@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
     options.samplerSize = 512;
     options.samplerMipmapLevel = 1;
     options.samplerMaxIterations = 256;
-    options.samplerLowerBound = 100000;
+    options.samplerLowerBound = 200000;
     options.renderWidth = 2048;
     options.renderHeight = 2048;
     options.renderIterations = 64;

@@ -12,8 +12,9 @@ import { VideoEncoder } from "./video_output";
 
 import { initialize } from "../native/sample_points";
 
-declare let ENVIRONMENT_ELECTRON: boolean;
-let isElectron = typeof (ENVIRONMENT_ELECTRON) != "undefined" && ENVIRONMENT_ELECTRON;
+declare let BUDDHABROT_RENDERER_ENVIRONMENT: string;
+let appEnvironment = (typeof (BUDDHABROT_RENDERER_ENVIRONMENT) != "undefined") ? BUDDHABROT_RENDERER_ENVIRONMENT : "browser";
+let isElectron = appEnvironment == "electron";
 
 function SliderRow(props: { label: string, value: number, min: number, max: number, step: number, disabled?: boolean, onChange: (v: number) => void }) {
     let onChange = (e) => {
@@ -124,10 +125,10 @@ class FractalRenderer extends React.Component<{ fractal: Fractal, options: Buddh
         if (!this.renderer) return;
         let N = 20000;
         let index = 1;
-        this.renderer.render(false, index);
+        this.renderer.render(index, 0);
         let renderNext = () => {
             index += 1;
-            this.renderer.render(true, index);
+            this.renderer.render(index, 1);
             if (index < N) {
                 this.currentTimeout = requestAnimationFrame(renderNext);
             }
@@ -163,7 +164,7 @@ class FractalRenderer extends React.Component<{ fractal: Fractal, options: Buddh
         this.currentTimeout = null;
         for (let i = 0; i < N; i++) {
             await nextAnimationFrame();
-            this.renderer.render(i > 0, i + 1);
+            this.renderer.render(i + 1, i > 0 ? 1 : 0);
         }
         this.renderer.readPixels(buffer);
     }
@@ -563,6 +564,83 @@ function MainView(props: {}) {
     );
 }
 
-initialize().then(() => {
-    ReactDOM.render(<MainView />, document.getElementById("container"));
-});
+export class PerformanceView extends React.Component<{}, {}> {
+    refs: {
+        mainCanvas: HTMLCanvasElement;
+    };
+
+    renderer: BuddhabrotRenderer;
+    options: BuddhabrotRendererOptions;
+    fractal: Fractal;
+    baseScale: number;
+
+    public componentDidMount() {
+        this.refs.mainCanvas.width = 2048;
+        this.refs.mainCanvas.height = 2048;
+        this.fractal = new Fractal();
+        this.options = BuddhabrotRenderer.GetProfileOptions(BuddhabrotRenderer.GetDefaultProfile());
+        this.options.renderSize = 2048;
+        this.options.samplerLowerBound = 20000;
+        this.renderer = new BuddhabrotRenderer(this.refs.mainCanvas, this.fractal, this.options);
+        this.renderer.setColormap([colormaps[0].colormap_xyz, colormaps[1].colormap_xyz, colormaps[2].colormap_xyz]);
+        this.renderer.exposure = 0;
+        this.baseScale = Math.log(9 / 16) / Math.log(2);
+        this.fractal.parameters.scale = this.baseScale;
+
+        let io = require("socket.io-client");
+        let socket = io();
+        socket.on("message", (data) => {
+            if (data.type == "parameters") {
+                for (let key in data.parameters) {
+                    if (key == "scale") {
+                        this.fractal.parameters[key] = this.baseScale + data.parameters[key];
+                    } else {
+                        this.fractal.parameters[key] = data.parameters[key];
+                    }
+                }
+            }
+        });
+        this.scheduleRender();
+    }
+
+    pr: number;
+    n = 1;
+    public scheduleRender() {
+        if (this.pr) {
+            cancelAnimationFrame(this.pr);
+        }
+
+        let distillParameters = () => {
+            return this.fractal.getParameters().map(x => {
+                let v = this.fractal.parameters[x.name];
+                return v / (x.range[1] - x.range[0]);
+            });
+        };
+
+        this.pr = requestAnimationFrame(() => {
+            this.scheduleRender();
+
+            let previous_weight = 0.9;
+            this.n = this.n * previous_weight + 1;
+            this.renderer.render(this.n, previous_weight);
+        });
+    }
+
+    public render() {
+        return (
+            <div className="performance-view">
+                <canvas ref="mainCanvas" style={{ width: "100%" }} />
+            </div>
+        );
+    }
+}
+
+if (appEnvironment == "performance") {
+    initialize().then(() => {
+        ReactDOM.render(<PerformanceView />, document.getElementById("container"));
+    });
+} else {
+    initialize().then(() => {
+        ReactDOM.render(<MainView />, document.getElementById("container"));
+    });
+}

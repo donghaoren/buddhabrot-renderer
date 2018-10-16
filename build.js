@@ -6,7 +6,7 @@ let COMMANDS = {
     watch: [
         "tsc -p . -w",
         "webpack -w",
-        "http-server -p 8000"
+        "node server.js"
     ],
     deploy: () => multirun.sequence([
         "rm -rf deploy",

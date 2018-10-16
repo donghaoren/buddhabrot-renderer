@@ -258,6 +258,29 @@ export class ShaderBuilder {
         `;
         return this.compile(vs_code, fs_code);
     }
+    buildCompose() {
+        let vs_code = `
+            precision highp float;
+            attribute vec2 a_position;
+            varying vec2 vo_position;
+            void main () {
+                vo_position = (a_position + 1.0) / 2.0;
+                gl_Position = vec4(a_position, 0, 1);
+            }
+        `;
+        let fs_code = `
+            precision highp float;
+            uniform sampler2D texture;
+            uniform float scaler;
+            varying vec2 vo_position;
+
+            void main() {
+                vec4 color = texture2D(texture, vo_position);
+                gl_FragColor = vec4(color.xyz * scaler, 1.0);
+            }
+        `;
+        return this.compile(vs_code, fs_code);
+    }
 }
 
 function randn_bm() {
@@ -400,12 +423,14 @@ export class BuddhabrotRenderer {
     private programRenderEscape: WebGLProgram;
     private programRender: WebGLProgram;
     private programColor: WebGLProgram;
+    private programCompose: WebGLProgram;
 
     private feedbackBuffer1: WebGLBuffer;
     private feedbackBuffer2: WebGLBuffer;
     private transformFeedback: WebGLTransformFeedback;
     private framebuffer: WebGLFramebuffer;
     private framebufferTexture: WebGLTexture;
+    private framebufferTextureBack: WebGLTexture;
 
     private textureColor: WebGLTexture;
     private colormapSize: number;
@@ -465,11 +490,20 @@ export class BuddhabrotRenderer {
         this.programRenderEscape = p.buildBuddhabrotEscape();
         this.programRender = p.buildBuddhabrot();
         this.programColor = p.buildQuad();
+        this.programCompose = p.buildCompose();
 
         this.transformFeedback = gl.createTransformFeedback();
 
         this.framebufferTexture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, this.framebufferTexture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, this.renderSize, this.renderSize, 0, gl.RGBA, gl.FLOAT, null);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        this.framebufferTextureBack = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.framebufferTextureBack);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -488,6 +522,11 @@ export class BuddhabrotRenderer {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.bindTexture(gl.TEXTURE_2D, null);
+
+        this.vbo = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
         this.setColormap([
             [[0, 0, 0, 1], [0, 0, 255, 1]],
@@ -516,7 +555,7 @@ export class BuddhabrotRenderer {
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 
-    public render(accumulate: boolean = false, accumulateScaler: number = 1) {
+    public render(accumulateScaler: number = 1, decayFactor: number = 1) {
         let gl = this.gl;
         gl.disable(gl.DEPTH_TEST);
 
@@ -526,9 +565,33 @@ export class BuddhabrotRenderer {
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.framebuffer);
         gl.viewport(0, 0, this.renderSize, this.renderSize);
         gl.clearColor(0, 0, 0, 1);
-        if (!accumulate) {
-            gl.clear(gl.COLOR_BUFFER_BIT);
-        }
+
+        // Copy the texture to back texture
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.framebufferTextureBack, 0);
+        gl.viewport(0, 0, this.renderSize, this.renderSize);
+        gl.useProgram(this.programCompose);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
+        gl.enableVertexAttribArray(gl.getAttribLocation(this.programCompose, "a_position"));
+        gl.vertexAttribPointer(gl.getAttribLocation(this.programCompose, "a_position"), 2, gl.FLOAT, false, 8, 0);
+        gl.uniform1i(gl.getUniformLocation(this.programCompose, "texture"), 0);
+        gl.uniform1f(gl.getUniformLocation(this.programCompose, "scaler"), decayFactor);
+        gl.bindTexture(gl.TEXTURE_2D, this.framebufferTexture);
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindTexture(gl.TEXTURE_2D, null);
+
+        // Swap textures
+        let tmp = this.framebufferTexture;
+        this.framebufferTexture = this.framebufferTextureBack;
+        this.framebufferTextureBack = tmp;
+
+
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.framebufferTexture, 0);
+        gl.viewport(0, 0, this.renderSize, this.renderSize);
+        gl.clearColor(0, 0, 0, 1);
+        // if (!accumulate) {
+        //     gl.clear(gl.COLOR_BUFFER_BIT);
+        // }
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.ONE, gl.ONE);
 
@@ -601,15 +664,12 @@ export class BuddhabrotRenderer {
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
+
         // Generate the colored fractal
         gl.viewport(0, 0, this.canvas.width, this.canvas.height);
         gl.clearColor(0, 0, 0, 1);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.disable(gl.BLEND);
-
-        this.vbo = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
 
         gl.useProgram(this.programColor);
         gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
@@ -623,7 +683,7 @@ export class BuddhabrotRenderer {
         gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, this.textureColor);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.framebufferTexture);
+        gl.bindTexture(gl.TEXTURE_2D, this.framebufferTextureBack);
         gl.generateMipmap(gl.TEXTURE_2D);
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
         gl.activeTexture(gl.TEXTURE1);
