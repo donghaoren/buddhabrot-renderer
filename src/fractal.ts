@@ -170,10 +170,8 @@ export class Fractal {
             uniform vec4 fractal_rotation_e2;
 
             vec2 ${name}(vec2 z, vec2 c) {
-                float xx = z.x * z.x;
-                float yy = z.y * z.y;
-                vec2 z2 = vec2(xx - yy, z.x * z.y * 2.0);
-                vec2 z3 = vec2(xx * z.x - 3.0 * z.x * yy, 3.0 * xx * z.y - yy * z.y);
+                vec2 z2 = vec2(z.x * z.x - z.y * z.y, z.x * z.y * 2.0);
+                vec2 z3 = vec2(z.x * z2.x - z.y * z2.y, z.x * z2.y + z.y * z2.x);
                 return fractal_z3_scaler * z3 + fractal_z2_scaler * z2 + fractal_z1_scaler * z + c;
             }
 
